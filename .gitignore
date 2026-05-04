@@ -1,0 +1,14 @@
+.vs/
+bin/
+obj/
+
+*.user
+*.suo
+*.rsuser
+*.log
+
+Debug/
+Release/
+x64/
+x86/
+build/Occt/
