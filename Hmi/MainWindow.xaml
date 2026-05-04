@@ -1,0 +1,84 @@
+<Window x:Class="Hmi.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:wf="clr-namespace:System.Windows.Forms;assembly=System.Windows.Forms"
+        xmlns:wfi="clr-namespace:System.Windows.Forms.Integration;assembly=WindowsFormsIntegration"
+        Title="RobotSimulation" Height="820" Width="1400" MinHeight="700" MinWidth="1100">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="320"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <DockPanel Grid.Column="0" Background="#F3F4F6" LastChildFill="True">
+            <StackPanel Margin="16">
+                <TextBlock Text="RobotSimulation" FontSize="24" FontWeight="Bold" Margin="0,0,0,18" />
+
+                <GroupBox Header="模型" Margin="0,0,0,12">
+                    <StackPanel Margin="10">
+                        <Button Name="BtnOpenFolder" Content="開啟模型資料夾" Height="34" Margin="0,0,0,8" Click="BtnOpenFolder_Click"/>
+                        <Button Name="BtnClear" Content="清空場景" Height="34" Click="BtnClear_Click"/>
+                    </StackPanel>
+                </GroupBox>
+
+                <GroupBox Header="視角" Margin="0,0,0,12">
+                    <StackPanel Orientation="Horizontal" Margin="10">
+                        <Button Content="ISO" Width="80" Height="30" Margin="0,0,8,0" Click="BtnIso_Click"/>
+                        <Button Content="Top" Width="80" Height="30" Margin="0,0,8,0" Click="BtnTop_Click"/>
+                        <Button Content="FitAll" Width="80" Height="30" Click="BtnFitAll_Click"/>
+                    </StackPanel>
+                </GroupBox>
+
+                <GroupBox Header="關節角度" Margin="0,0,0,12">
+                    <Grid Margin="10">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="36"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="60"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Text="J1"/>
+                        <Slider Name="SliderJ1" Grid.Row="0" Grid.Column="1" Minimum="-170" Maximum="170" Value="0" IsSnapToTickEnabled="True" TickFrequency="1" Margin="8,4" ValueChanged="Slider_ValueChanged" Tag="0"/>
+                        <TextBlock Name="LblJ1" Grid.Row="0" Grid.Column="2" VerticalAlignment="Center" Text="0°"/>
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Text="J2"/>
+                        <Slider Name="SliderJ2" Grid.Row="1" Grid.Column="1" Minimum="-96" Maximum="130" Value="0" IsSnapToTickEnabled="True" TickFrequency="1" Margin="8,4" ValueChanged="Slider_ValueChanged" Tag="1"/>
+                        <TextBlock Name="LblJ2" Grid.Row="1" Grid.Column="2" VerticalAlignment="Center" Text="0°"/>
+
+                        <TextBlock Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" Text="J3"/>
+                        <Slider Name="SliderJ3" Grid.Row="2" Grid.Column="1" Minimum="-195" Maximum="65" Value="0" IsSnapToTickEnabled="True" TickFrequency="1" Margin="8,4" ValueChanged="Slider_ValueChanged" Tag="2"/>
+                        <TextBlock Name="LblJ3" Grid.Row="2" Grid.Column="2" VerticalAlignment="Center" Text="0°"/>
+
+                        <TextBlock Grid.Row="3" Grid.Column="0" VerticalAlignment="Center" Text="J4"/>
+                        <Slider Name="SliderJ4" Grid.Row="3" Grid.Column="1" Minimum="-170" Maximum="170" Value="0" IsSnapToTickEnabled="True" TickFrequency="1" Margin="8,4" ValueChanged="Slider_ValueChanged" Tag="3"/>
+                        <TextBlock Name="LblJ4" Grid.Row="3" Grid.Column="2" VerticalAlignment="Center" Text="0°"/>
+
+                        <TextBlock Grid.Row="4" Grid.Column="0" VerticalAlignment="Center" Text="J5"/>
+                        <Slider Name="SliderJ5" Grid.Row="4" Grid.Column="1" Minimum="-120" Maximum="120" Value="0" IsSnapToTickEnabled="True" TickFrequency="1" Margin="8,4" ValueChanged="Slider_ValueChanged" Tag="4"/>
+                        <TextBlock Name="LblJ5" Grid.Row="4" Grid.Column="2" VerticalAlignment="Center" Text="0°"/>
+
+                        <TextBlock Grid.Row="5" Grid.Column="0" VerticalAlignment="Center" Text="J6"/>
+                        <Slider Name="SliderJ6" Grid.Row="5" Grid.Column="1" Minimum="-360" Maximum="360" Value="0" IsSnapToTickEnabled="True" TickFrequency="1" Margin="8,4" ValueChanged="Slider_ValueChanged" Tag="5"/>
+                        <TextBlock Name="LblJ6" Grid.Row="5" Grid.Column="2" VerticalAlignment="Center" Text="0°"/>
+                    </Grid>
+                </GroupBox>
+
+                <TextBlock Name="TxtStatus" Margin="2,8,0,0" TextWrapping="Wrap" Foreground="#444" Text="準備就緒"/>
+            </StackPanel>
+        </DockPanel>
+
+        <Border Grid.Column="1" Margin="8" CornerRadius="8" BorderBrush="#D1D5DB" BorderThickness="1" Background="#2E2E2E">
+            <wfi:WindowsFormsHost Name="WinFormsHost" Margin="0">
+                <wf:Panel x:Name="DesignPlaceholder" BackColor="#2E2E2E" />
+            </wfi:WindowsFormsHost>
+        </Border>
+    </Grid>
+</Window>
