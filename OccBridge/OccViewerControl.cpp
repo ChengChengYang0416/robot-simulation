@@ -2,169 +2,169 @@
 
 namespace OccBridge {
 
-    OccViewerControl::OccViewerControl()
-        : _native(new NativeOccView()), _initialized(false)
-    {
-        this->BackColor = System::Drawing::Color::FromArgb(46, 46, 46);
-        this->Dock = DockStyle::Fill;
-        this->DoubleBuffered = false;
-        this->SetStyle(ControlStyles::Selectable, true);
-    }
+	OccViewerControl::OccViewerControl()
+		: _native(new NativeOccView()), _initialized(false)
+	{
+		this->BackColor = System::Drawing::Color::FromArgb(46, 46, 46);
+		this->Dock = DockStyle::Fill;
+		this->DoubleBuffered = false;
+		this->SetStyle(ControlStyles::Selectable, true);
+	}
 
-    OccViewerControl::~OccViewerControl()
-    {
-        this->!OccViewerControl();
-    }
+	OccViewerControl::~OccViewerControl()
+	{
+		this->!OccViewerControl();
+	}
 
-    OccViewerControl::!OccViewerControl()
-    {
-        if (_native != nullptr)
-        {
-            delete _native;
-            _native = nullptr;
-        }
-    }
+	OccViewerControl::!OccViewerControl()
+	{
+		if (_native != nullptr)
+		{
+			delete _native;
+			_native = nullptr;
+		}
+	}
 
-    void OccViewerControl::OnHandleCreated(EventArgs^ e)
-    {
-        UserControl::OnHandleCreated(e);
-        if (!_initialized && this->Handle != IntPtr::Zero)
-        {
-            _native->initialize(static_cast<HWND>(this->Handle.ToPointer()));
-            _initialized = true;
-        }
-    }
+	void OccViewerControl::OnHandleCreated(EventArgs^ e)
+	{
+		UserControl::OnHandleCreated(e);
+		if (!_initialized && this->Handle != IntPtr::Zero)
+		{
+			_native->initialize(static_cast<HWND>(this->Handle.ToPointer()));
+			_initialized = true;
+		}
+	}
 
-    void OccViewerControl::OnResize(EventArgs^ e)
-    {
-        UserControl::OnResize(e);
-        if (_initialized)
-        {
-            _native->resize(this->Width, this->Height);
-        }
-    }
+	void OccViewerControl::OnResize(EventArgs^ e)
+	{
+		UserControl::OnResize(e);
+		if (_initialized)
+		{
+			_native->resize(this->Width, this->Height);
+		}
+	}
 
-    void OccViewerControl::OnPaint(PaintEventArgs^ e)
-    {
-        UserControl::OnPaint(e);
-        if (_initialized)
-        {
-            _native->redraw();
-        }
-    }
+	void OccViewerControl::OnPaint(PaintEventArgs^ e)
+	{
+		UserControl::OnPaint(e);
+		if (_initialized)
+		{
+			_native->redraw();
+		}
+	}
 
-    bool OccViewerControl::LoadStep(String^ path, bool append)
-    {
-        if (!_initialized)
-            return false;
+	bool OccViewerControl::LoadStep(String^ path, bool append)
+	{
+		if (!_initialized)
+			return false;
 
-        std::wstring nativePath = msclr::interop::marshal_as<std::wstring>(path);
-        return _native->loadStep(nativePath, append);
-    }
+		std::wstring nativePath = msclr::interop::marshal_as<std::wstring>(path);
+		return _native->loadStep(nativePath, append);
+	}
 
-    void OccViewerControl::ClearScene()
-    {
-        if (_initialized)
-            _native->clearScene();
-    }
+	void OccViewerControl::ClearScene()
+	{
+		if (_initialized)
+			_native->clearScene();
+	}
 
-    bool OccViewerControl::LoadRobotArm(cli::array<RobotPartInfo^>^ parts,
-                                        cli::array<cli::array<int>^>^ axisToPartMap)
-    {
-        if (!_initialized)
-            return false;
+	bool OccViewerControl::LoadRobotArm(cli::array<RobotPartInfo^>^ parts,
+										cli::array<cli::array<int>^>^ axisToPartMap)
+	{
+		if (!_initialized)
+			return false;
 
-        std::vector<RobotPartDef> nativeParts(parts->Length);
-        for (int i = 0; i < parts->Length; i++)
-        {
-            System::String^ fp = parts[i]->FilePath;
-            nativeParts[i].filePath = msclr::interop::marshal_as<std::wstring>(fp);
-            nativeParts[i].dhA = parts[i]->DH_a;
-            nativeParts[i].dhAlpha = parts[i]->DH_alpha;
-            nativeParts[i].dhD = parts[i]->DH_d;
-            nativeParts[i].dhTheta = parts[i]->DH_theta;
-            for (int j = 0; j < 6; j++)
-                nativeParts[i].offset[j] = parts[i]->Offset[j];
-            nativeParts[i].parentIdx = parts[i]->ParentIdx;
-            nativeParts[i].colorR = parts[i]->ColorR;
-            nativeParts[i].colorG = parts[i]->ColorG;
-            nativeParts[i].colorB = parts[i]->ColorB;
-        }
+		std::vector<RobotPartDef> nativeParts(parts->Length);
+		for (int i = 0; i < parts->Length; i++)
+		{
+			System::String^ fp = parts[i]->FilePath;
+			nativeParts[i].filePath = msclr::interop::marshal_as<std::wstring>(fp);
+			nativeParts[i].dhA = parts[i]->DH_a;
+			nativeParts[i].dhAlpha = parts[i]->DH_alpha;
+			nativeParts[i].dhD = parts[i]->DH_d;
+			nativeParts[i].dhTheta = parts[i]->DH_theta;
+			for (int j = 0; j < 6; j++)
+				nativeParts[i].offset[j] = parts[i]->Offset[j];
+			nativeParts[i].parentIdx = parts[i]->ParentIdx;
+			nativeParts[i].colorR = parts[i]->ColorR;
+			nativeParts[i].colorG = parts[i]->ColorG;
+			nativeParts[i].colorB = parts[i]->ColorB;
+		}
 
-        std::vector<std::pair<int32_t, int32_t>> nativeMap;
-        if (axisToPartMap != nullptr)
-        {
-            for (int i = 0; i < axisToPartMap->Length; i++)
-            {
-                int a = axisToPartMap[i][0];
-                int b = axisToPartMap[i][1];
-                nativeMap.emplace_back(a, b);
-            }
-        }
+		std::vector<std::pair<int32_t, int32_t>> nativeMap;
+		if (axisToPartMap != nullptr)
+		{
+			for (int i = 0; i < axisToPartMap->Length; i++)
+			{
+				int a = axisToPartMap[i][0];
+				int b = axisToPartMap[i][1];
+				nativeMap.emplace_back(a, b);
+			}
+		}
 
-        return _native->loadRobotArm(nativeParts, nativeMap);
-    }
+		return _native->loadRobotArm(nativeParts, nativeMap);
+	}
 
-    void OccViewerControl::SetJointAngle(int axisIndex, double angleDeg)
-    {
-        if (_initialized)
-            _native->setJointAngle(axisIndex, angleDeg);
-    }
+	void OccViewerControl::SetJointAngle(int axisIndex, double angleDeg)
+	{
+		if (_initialized)
+			_native->setJointAngle(axisIndex, angleDeg);
+	}
 
-    void OccViewerControl::FitAllView()
-    {
-        if (_initialized)
-            _native->fitAll();
-    }
+	void OccViewerControl::FitAllView()
+	{
+		if (_initialized)
+			_native->fitAll();
+	}
 
-    void OccViewerControl::SetViewIso()
-    {
-        if (_initialized)
-            _native->setViewIso();
-    }
+	void OccViewerControl::SetViewIso()
+	{
+		if (_initialized)
+			_native->setViewIso();
+	}
 
-    void OccViewerControl::SetViewTop()
-    {
-        if (_initialized)
-            _native->setViewTop();
-    }
+	void OccViewerControl::SetViewTop()
+	{
+		if (_initialized)
+			_native->setViewTop();
+	}
 
-    void OccViewerControl::OnMouseDown(MouseEventArgs^ e)
-    {
-        UserControl::OnMouseDown(e);
-        if (!this->Focused)
-            this->Focus();
-        if (_initialized)
-        {
-            _native->onMouseDown(e->X, e->Y, static_cast<int>(e->Button));
-        }
-    }
+	void OccViewerControl::OnMouseDown(MouseEventArgs^ e)
+	{
+		UserControl::OnMouseDown(e);
+		if (!this->Focused)
+			this->Focus();
+		if (_initialized)
+		{
+			_native->onMouseDown(e->X, e->Y, static_cast<int>(e->Button));
+		}
+	}
 
-    void OccViewerControl::OnMouseMove(MouseEventArgs^ e)
-    {
-        UserControl::OnMouseMove(e);
-        if (_initialized)
-        {
-            _native->onMouseMove(e->X, e->Y, static_cast<int>(e->Button));
-        }
-    }
+	void OccViewerControl::OnMouseMove(MouseEventArgs^ e)
+	{
+		UserControl::OnMouseMove(e);
+		if (_initialized)
+		{
+			_native->onMouseMove(e->X, e->Y, static_cast<int>(e->Button));
+		}
+	}
 
-    void OccViewerControl::OnMouseUp(MouseEventArgs^ e)
-    {
-        UserControl::OnMouseUp(e);
-        if (_initialized)
-        {
-            _native->onMouseUp();
-        }
-    }
+	void OccViewerControl::OnMouseUp(MouseEventArgs^ e)
+	{
+		UserControl::OnMouseUp(e);
+		if (_initialized)
+		{
+			_native->onMouseUp();
+		}
+	}
 
-    void OccViewerControl::OnMouseWheel(MouseEventArgs^ e)
-    {
-        UserControl::OnMouseWheel(e);
-        if (_initialized)
-        {
-            _native->onMouseWheel(e->Delta);
-        }
-    }
+	void OccViewerControl::OnMouseWheel(MouseEventArgs^ e)
+	{
+		UserControl::OnMouseWheel(e);
+		if (_initialized)
+		{
+			_native->onMouseWheel(e->Delta);
+		}
+	}
 
 }
