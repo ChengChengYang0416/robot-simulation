@@ -30,7 +30,7 @@ namespace OccBridge {
         UserControl::OnHandleCreated(e);
         if (!_initialized && this->Handle != IntPtr::Zero)
         {
-            _native->Initialize(static_cast<HWND>(this->Handle.ToPointer()));
+            _native->initialize(static_cast<HWND>(this->Handle.ToPointer()));
             _initialized = true;
         }
     }
@@ -40,7 +40,7 @@ namespace OccBridge {
         UserControl::OnResize(e);
         if (_initialized)
         {
-            _native->Resize(this->Width, this->Height);
+            _native->resize(this->Width, this->Height);
         }
     }
 
@@ -49,7 +49,7 @@ namespace OccBridge {
         UserControl::OnPaint(e);
         if (_initialized)
         {
-            _native->Redraw();
+            _native->redraw();
         }
     }
 
@@ -59,13 +59,13 @@ namespace OccBridge {
             return false;
 
         std::wstring nativePath = msclr::interop::marshal_as<std::wstring>(path);
-        return _native->LoadStep(nativePath, append);
+        return _native->loadStep(nativePath, append);
     }
 
     void OccViewerControl::ClearScene()
     {
         if (_initialized)
-            _native->ClearScene();
+            _native->clearScene();
     }
 
     bool OccViewerControl::LoadRobotArm(cli::array<RobotPartInfo^>^ parts,
@@ -79,10 +79,10 @@ namespace OccBridge {
         {
             System::String^ fp = parts[i]->FilePath;
             nativeParts[i].filePath = msclr::interop::marshal_as<std::wstring>(fp);
-            nativeParts[i].dh_a = parts[i]->DH_a;
-            nativeParts[i].dh_alpha = parts[i]->DH_alpha;
-            nativeParts[i].dh_d = parts[i]->DH_d;
-            nativeParts[i].dh_theta = parts[i]->DH_theta;
+            nativeParts[i].dhA = parts[i]->DH_a;
+            nativeParts[i].dhAlpha = parts[i]->DH_alpha;
+            nativeParts[i].dhD = parts[i]->DH_d;
+            nativeParts[i].dhTheta = parts[i]->DH_theta;
             for (int j = 0; j < 6; j++)
                 nativeParts[i].offset[j] = parts[i]->Offset[j];
             nativeParts[i].parentIdx = parts[i]->ParentIdx;
@@ -91,42 +91,42 @@ namespace OccBridge {
             nativeParts[i].colorB = parts[i]->ColorB;
         }
 
-        std::vector<std::pair<int,int>> nativeMap;
+        std::vector<std::pair<int32_t, int32_t>> nativeMap;
         if (axisToPartMap != nullptr)
         {
             for (int i = 0; i < axisToPartMap->Length; i++)
             {
                 int a = axisToPartMap[i][0];
                 int b = axisToPartMap[i][1];
-                nativeMap.push_back(std::make_pair(a, b));
+                nativeMap.emplace_back(a, b);
             }
         }
 
-        return _native->LoadRobotArm(nativeParts, nativeMap);
+        return _native->loadRobotArm(nativeParts, nativeMap);
     }
 
     void OccViewerControl::SetJointAngle(int axisIndex, double angleDeg)
     {
         if (_initialized)
-            _native->SetJointAngle(axisIndex, angleDeg);
+            _native->setJointAngle(axisIndex, angleDeg);
     }
 
     void OccViewerControl::FitAllView()
     {
         if (_initialized)
-            _native->FitAll();
+            _native->fitAll();
     }
 
     void OccViewerControl::SetViewIso()
     {
         if (_initialized)
-            _native->SetViewIso();
+            _native->setViewIso();
     }
 
     void OccViewerControl::SetViewTop()
     {
         if (_initialized)
-            _native->SetViewTop();
+            _native->setViewTop();
     }
 
     void OccViewerControl::OnMouseDown(MouseEventArgs^ e)
@@ -136,7 +136,7 @@ namespace OccBridge {
             this->Focus();
         if (_initialized)
         {
-            _native->OnMouseDown(e->X, e->Y, static_cast<int>(e->Button));
+            _native->onMouseDown(e->X, e->Y, static_cast<int>(e->Button));
         }
     }
 
@@ -145,7 +145,7 @@ namespace OccBridge {
         UserControl::OnMouseMove(e);
         if (_initialized)
         {
-            _native->OnMouseMove(e->X, e->Y, static_cast<int>(e->Button));
+            _native->onMouseMove(e->X, e->Y, static_cast<int>(e->Button));
         }
     }
 
@@ -154,7 +154,7 @@ namespace OccBridge {
         UserControl::OnMouseUp(e);
         if (_initialized)
         {
-            _native->OnMouseUp();
+            _native->onMouseUp();
         }
     }
 
@@ -163,7 +163,7 @@ namespace OccBridge {
         UserControl::OnMouseWheel(e);
         if (_initialized)
         {
-            _native->OnMouseWheel(e->Delta);
+            _native->onMouseWheel(e->Delta);
         }
     }
 

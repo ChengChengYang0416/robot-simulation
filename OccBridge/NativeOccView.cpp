@@ -1,4 +1,5 @@
 #include <msclr/marshal_cppstd.h>
+#include <cstdint>
 #include <string>
 #include <cmath>
 
@@ -9,31 +10,32 @@
 #include <gp_Dir.hxx>
 #include <gp_Vec.hxx>
 
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
+static constexpr double kPi = 3.14159265358979323846;
+static constexpr double kDegToRad = kPi / 180.0;
+static constexpr double kEpsilon = 1e-10;
+static constexpr double kZoomFactor = 1.15;
 
-static gp_Trsf MakeDHTransform(double a, double alpha_deg, double d, double theta_deg)
+static gp_Trsf makeDhTransform(double a, double alphaDeg, double d, double thetaDeg)
 {
-    double alpha_rad = alpha_deg * M_PI / 180.0;
-    double theta_rad = theta_deg * M_PI / 180.0;
+    const double alphaRad = alphaDeg * kDegToRad;
+    const double thetaRad = thetaDeg * kDegToRad;
 
     // Standard DH: Rz(theta) * Tz(d) * Tx(a) * Rx(alpha)
     gp_Trsf rz;
-    if (std::abs(theta_rad) > 1e-10)
-        rz.SetRotation(gp_Ax1(gp_Pnt(0, 0, 0), gp_Dir(0, 0, 1)), theta_rad);
+    if (std::abs(thetaRad) > kEpsilon)
+        rz.SetRotation(gp_Ax1(gp_Pnt(0, 0, 0), gp_Dir(0, 0, 1)), thetaRad);
 
     gp_Trsf tz;
-    if (std::abs(d) > 1e-10)
+    if (std::abs(d) > kEpsilon)
         tz.SetTranslation(gp_Vec(0, 0, d));
 
     gp_Trsf tx;
-    if (std::abs(a) > 1e-10)
+    if (std::abs(a) > kEpsilon)
         tx.SetTranslation(gp_Vec(a, 0, 0));
 
     gp_Trsf rx;
-    if (std::abs(alpha_rad) > 1e-10)
-        rx.SetRotation(gp_Ax1(gp_Pnt(0, 0, 0), gp_Dir(1, 0, 0)), alpha_rad);
+    if (std::abs(alphaRad) > kEpsilon)
+        rx.SetRotation(gp_Ax1(gp_Pnt(0, 0, 0), gp_Dir(1, 0, 0)), alphaRad);
 
     gp_Trsf result = rz;
     result.Multiply(tz);
@@ -42,23 +44,23 @@ static gp_Trsf MakeDHTransform(double a, double alpha_deg, double d, double thet
     return result;
 }
 
-static gp_Trsf MakeOffsetTransform(double tx, double ty, double tz,
-    double rx_deg, double ry_deg, double rz_deg)
+static gp_Trsf makeOffsetTransform(double tx, double ty, double tz,
+                                   double rxDeg, double ryDeg, double rzDeg)
 {
     gp_Trsf rotX;
-    if (std::abs(rx_deg) > 1e-10)
-        rotX.SetRotation(gp_Ax1(gp_Pnt(0, 0, 0), gp_Dir(1, 0, 0)), rx_deg * M_PI / 180.0);
+    if (std::abs(rxDeg) > kEpsilon)
+        rotX.SetRotation(gp_Ax1(gp_Pnt(0, 0, 0), gp_Dir(1, 0, 0)), rxDeg * kDegToRad);
 
     gp_Trsf rotY;
-    if (std::abs(ry_deg) > 1e-10)
-        rotY.SetRotation(gp_Ax1(gp_Pnt(0, 0, 0), gp_Dir(0, 1, 0)), ry_deg * M_PI / 180.0);
+    if (std::abs(ryDeg) > kEpsilon)
+        rotY.SetRotation(gp_Ax1(gp_Pnt(0, 0, 0), gp_Dir(0, 1, 0)), ryDeg * kDegToRad);
 
     gp_Trsf rotZ;
-    if (std::abs(rz_deg) > 1e-10)
-        rotZ.SetRotation(gp_Ax1(gp_Pnt(0, 0, 0), gp_Dir(0, 0, 1)), rz_deg * M_PI / 180.0);
+    if (std::abs(rzDeg) > kEpsilon)
+        rotZ.SetRotation(gp_Ax1(gp_Pnt(0, 0, 0), gp_Dir(0, 0, 1)), rzDeg * kDegToRad);
 
     gp_Trsf trans;
-    if (std::abs(tx) > 1e-10 || std::abs(ty) > 1e-10 || std::abs(tz) > 1e-10)
+    if (std::abs(tx) > kEpsilon || std::abs(ty) > kEpsilon || std::abs(tz) > kEpsilon)
         trans.SetTranslation(gp_Vec(tx, ty, tz));
 
     // T * Rz * Ry * Rx: cancels DH rotation, placing CAD in original orientation
@@ -69,18 +71,15 @@ static gp_Trsf MakeOffsetTransform(double tx, double ty, double tz,
     return result;
 }
 
-static std::string WideToUtf8(const std::wstring& wide)
+static std::string wideToUtf8(const std::wstring& wide)
 {
-    int len = WideCharToMultiByte(CP_UTF8, 0, wide.c_str(), -1, nullptr, 0, nullptr, nullptr);
+    const int32_t len = WideCharToMultiByte(CP_UTF8, 0, wide.c_str(), -1, nullptr, 0, nullptr, nullptr);
     std::string utf8(len - 1, '\0');
     WideCharToMultiByte(CP_UTF8, 0, wide.c_str(), -1, &utf8[0], len, nullptr, nullptr);
     return utf8;
 }
 
-NativeOccView::NativeOccView()
-    : m_hwnd(nullptr), m_lastX(0), m_lastY(0), m_isRotating(false), m_isPanning(false)
-{
-}
+NativeOccView::NativeOccView() = default;
 
 NativeOccView::~NativeOccView()
 {
@@ -92,7 +91,7 @@ NativeOccView::~NativeOccView()
     m_displayConnection.Nullify();
 }
 
-void NativeOccView::Initialize(HWND hwnd)
+void NativeOccView::initialize(HWND hwnd)
 {
     m_hwnd = hwnd;
 
@@ -104,7 +103,7 @@ void NativeOccView::Initialize(HWND hwnd)
     m_context = new AIS_InteractiveContext(m_viewer);
     m_view = m_viewer->CreateView();
 
-    Handle(WNT_Window) window = new WNT_Window((Aspect_Handle)m_hwnd);
+    Handle(WNT_Window) window = new WNT_Window(reinterpret_cast<Aspect_Handle>(m_hwnd));
     m_view->SetWindow(window);
     if (!window->IsMapped())
     {
@@ -118,7 +117,7 @@ void NativeOccView::Initialize(HWND hwnd)
     m_view->Redraw();
 }
 
-void NativeOccView::Resize(int, int)
+void NativeOccView::resize(int32_t /*width*/, int32_t /*height*/)
 {
     if (!m_view.IsNull())
     {
@@ -127,7 +126,7 @@ void NativeOccView::Resize(int, int)
     }
 }
 
-void NativeOccView::Redraw()
+void NativeOccView::redraw()
 {
     if (!m_view.IsNull())
     {
@@ -135,7 +134,7 @@ void NativeOccView::Redraw()
     }
 }
 
-bool NativeOccView::LoadStep(const std::wstring& filePath, bool append)
+bool NativeOccView::loadStep(const std::wstring& filePath, bool append)
 {
     if (m_context.IsNull())
     {
@@ -144,19 +143,19 @@ bool NativeOccView::LoadStep(const std::wstring& filePath, bool append)
 
     if (!append)
     {
-        ClearScene();
+        clearScene();
     }
 
-    std::string utf8Path = WideToUtf8(filePath);
+    const std::string utf8Path = wideToUtf8(filePath);
 
     STEPControl_Reader reader;
-    IFSelect_ReturnStatus status = reader.ReadFile(utf8Path.c_str());
+    const IFSelect_ReturnStatus status = reader.ReadFile(utf8Path.c_str());
     if (status != IFSelect_RetDone)
     {
         return false;
     }
 
-    Standard_Integer roots = reader.TransferRoots();
+    const Standard_Integer roots = reader.TransferRoots();
     if (roots <= 0)
     {
         return false;
@@ -170,44 +169,43 @@ bool NativeOccView::LoadStep(const std::wstring& filePath, bool append)
 
     Handle(AIS_Shape) aisShape = new AIS_Shape(shape);
     m_context->Display(aisShape, Standard_False);
-    m_context->SetDisplayMode(aisShape, 1, Standard_False); // AIS_Shaded
+    m_context->SetDisplayMode(aisShape, 1, Standard_False);
     m_shapes.push_back(aisShape);
-    FitAll();
+    fitAll();
     return true;
 }
 
-bool NativeOccView::LoadRobotArm(const std::vector<RobotPartDef>& parts,
-                                 const std::vector<std::pair<int,int>>& axisToPartMap)
+bool NativeOccView::loadRobotArm(const std::vector<RobotPartDef>& parts,
+                                 const std::vector<std::pair<int32_t, int32_t>>& axisToPartMap)
 {
     if (m_context.IsNull())
         return false;
 
-    ClearScene();
+    clearScene();
 
     m_partDefs = parts;
     m_axisToPartMap = axisToPartMap;
     m_jointAngles.assign(6, 0.0);
 
-    int n = static_cast<int>(parts.size());
+    const auto n = static_cast<int32_t>(parts.size());
 
-    // Load all STEP files and create AIS_Shape objects
-    for (int i = 0; i < n; i++)
+    for (int32_t i = 0; i < n; ++i)
     {
-        std::string utf8Path = WideToUtf8(parts[i].filePath);
+        const std::string utf8Path = wideToUtf8(parts[i].filePath);
 
         STEPControl_Reader reader;
-        IFSelect_ReturnStatus status = reader.ReadFile(utf8Path.c_str());
+        const IFSelect_ReturnStatus status = reader.ReadFile(utf8Path.c_str());
         if (status != IFSelect_RetDone)
         {
-            m_originalShapes.push_back(TopoDS_Shape());
+            m_originalShapes.emplace_back();
             m_shapes.push_back(Handle(AIS_Shape)());
             continue;
         }
 
-        Standard_Integer roots = reader.TransferRoots();
+        const Standard_Integer roots = reader.TransferRoots();
         if (roots <= 0)
         {
-            m_originalShapes.push_back(TopoDS_Shape());
+            m_originalShapes.emplace_back();
             m_shapes.push_back(Handle(AIS_Shape)());
             continue;
         }
@@ -216,7 +214,7 @@ bool NativeOccView::LoadRobotArm(const std::vector<RobotPartDef>& parts,
         m_originalShapes.push_back(shape);
 
         Handle(AIS_Shape) aisShape = new AIS_Shape(shape);
-        Quantity_Color qColor(
+        const Quantity_Color qColor(
             parts[i].colorR / 255.0,
             parts[i].colorG / 255.0,
             parts[i].colorB / 255.0,
@@ -226,33 +224,33 @@ bool NativeOccView::LoadRobotArm(const std::vector<RobotPartDef>& parts,
         m_shapes.push_back(aisShape);
     }
 
-    UpdateRobotTransforms();
-    FitAll();
+    updateRobotTransforms();
+    fitAll();
     return !m_shapes.empty();
 }
 
-void NativeOccView::SetJointAngle(int axisIndex, double angleDeg)
+void NativeOccView::setJointAngle(int32_t axisIndex, double angleDeg)
 {
     if (axisIndex < 0 || axisIndex >= 6 || m_jointAngles.size() != 6)
         return;
 
     m_jointAngles[axisIndex] = angleDeg;
-    UpdateRobotTransforms();
+    updateRobotTransforms();
 }
 
-void NativeOccView::UpdateRobotTransforms()
+void NativeOccView::updateRobotTransforms()
 {
     if (m_context.IsNull() || m_partDefs.empty())
         return;
 
-    int n = static_cast<int>(m_partDefs.size());
+    const auto n = static_cast<int32_t>(m_partDefs.size());
 
     // Build joint angle delta per part
     std::vector<double> partJointDelta(n, 0.0);
     for (const auto& mapping : m_axisToPartMap)
     {
-        int axisIdx = mapping.first;
-        int partIdx = mapping.second;
+        const int32_t axisIdx = mapping.first;
+        const int32_t partIdx = mapping.second;
         if (axisIdx >= 1 && axisIdx <= 6 && partIdx >= 0 && partIdx < n)
         {
             partJointDelta[partIdx] = m_jointAngles[axisIdx - 1];
@@ -261,14 +259,14 @@ void NativeOccView::UpdateRobotTransforms()
 
     // Compute cumulative DH transforms
     std::vector<gp_Trsf> dhCumulative(n);
-    for (int i = 0; i < n; i++)
+    for (int32_t i = 0; i < n; ++i)
     {
-        double theta = m_partDefs[i].dh_theta + partJointDelta[i];
-        gp_Trsf dhLocal = MakeDHTransform(
-            m_partDefs[i].dh_a, m_partDefs[i].dh_alpha,
-            m_partDefs[i].dh_d, theta);
+        const double theta = m_partDefs[i].dhTheta + partJointDelta[i];
+        gp_Trsf dhLocal = makeDhTransform(
+            m_partDefs[i].dhA, m_partDefs[i].dhAlpha,
+            m_partDefs[i].dhD, theta);
 
-        int parent = m_partDefs[i].parentIdx;
+        const int32_t parent = m_partDefs[i].parentIdx;
         if (parent >= 0 && parent < n)
         {
             dhCumulative[i] = dhCumulative[parent];
@@ -280,27 +278,25 @@ void NativeOccView::UpdateRobotTransforms()
         }
     }
 
-    // Update each shape: swap underlying TopoDS_Shape with located version
-    for (int i = 0; i < n; i++)
+    for (int32_t i = 0; i < n; ++i)
     {
         if (m_shapes[i].IsNull())
             continue;
 
-        gp_Trsf offsetTrsf = MakeOffsetTransform(
+        gp_Trsf offsetTrsf = makeOffsetTransform(
             m_partDefs[i].offset[0], m_partDefs[i].offset[1], m_partDefs[i].offset[2],
             m_partDefs[i].offset[3], m_partDefs[i].offset[4], m_partDefs[i].offset[5]);
 
         gp_Trsf finalTrsf = dhCumulative[i];
         finalTrsf.Multiply(offsetTrsf);
 
-        // Update the transformation on the AIS object directly
         m_shapes[i]->SetLocalTransformation(finalTrsf);
     }
 
     m_context->UpdateCurrentViewer();
 }
 
-void NativeOccView::ClearScene()
+void NativeOccView::clearScene()
 {
     if (m_context.IsNull())
     {
@@ -318,10 +314,10 @@ void NativeOccView::ClearScene()
     m_axisToPartMap.clear();
     m_jointAngles.clear();
     m_context->UpdateCurrentViewer();
-    Redraw();
+    redraw();
 }
 
-void NativeOccView::FitAll()
+void NativeOccView::fitAll()
 {
     if (!m_view.IsNull())
     {
@@ -331,30 +327,30 @@ void NativeOccView::FitAll()
     }
 }
 
-void NativeOccView::SetViewIso()
+void NativeOccView::setViewIso()
 {
     if (!m_view.IsNull())
     {
         m_view->SetProj(V3d_XposYnegZpos);
-        FitAll();
+        fitAll();
     }
 }
 
-void NativeOccView::SetViewTop()
+void NativeOccView::setViewTop()
 {
     if (!m_view.IsNull())
     {
         m_view->SetProj(V3d_Zpos);
-        FitAll();
+        fitAll();
     }
 }
 
-void NativeOccView::OnMouseDown(int x, int y, int button)
+void NativeOccView::onMouseDown(int32_t x, int32_t y, int32_t button)
 {
     m_lastX = x;
     m_lastY = y;
 
-    if (button == 1048576) // Left
+    if (button == static_cast<int32_t>(MouseButton::Left))
     {
         m_isRotating = true;
         if (!m_view.IsNull())
@@ -362,13 +358,13 @@ void NativeOccView::OnMouseDown(int x, int y, int button)
             m_view->StartRotation(x, y);
         }
     }
-    else if (button == 4194304) // Middle
+    else if (button == static_cast<int32_t>(MouseButton::Middle))
     {
         m_isPanning = true;
     }
 }
 
-void NativeOccView::OnMouseMove(int x, int y, int)
+void NativeOccView::onMouseMove(int32_t x, int32_t y, int32_t /*buttonMask*/)
 {
     if (m_view.IsNull() || m_context.IsNull())
     {
@@ -391,18 +387,18 @@ void NativeOccView::OnMouseMove(int x, int y, int)
     }
 }
 
-void NativeOccView::OnMouseUp()
+void NativeOccView::onMouseUp()
 {
     m_isRotating = false;
     m_isPanning = false;
 }
 
-void NativeOccView::OnMouseWheel(int delta)
+void NativeOccView::onMouseWheel(int32_t delta)
 {
     if (m_view.IsNull())
         return;
 
-    double factor = (delta > 0) ? 1.15 : (1.0 / 1.15);
+    const double factor = (delta > 0) ? kZoomFactor : (1.0 / kZoomFactor);
     m_view->SetZoom(factor);
     m_view->Redraw();
 }
