@@ -1,4 +1,9 @@
+#include <msclr/marshal_cppstd.h>
 #include "OccViewerControl.h"
+#include "NativeOccView.h"
+#include "RobotPartDef.h"
+#include <vector>
+#include <string>
 
 namespace OccBridge {
 
@@ -56,7 +61,7 @@ namespace OccBridge {
 		}
 
 		std::wstring nativePath = msclr::interop::marshal_as<std::wstring>(path);
-		return _native->loadStep(nativePath, append);
+		return _native->loadStep(nativePath.c_str(), append);
 	}
 
 	void OccViewerControl::ClearScene()
@@ -90,17 +95,17 @@ namespace OccBridge {
 			nativeParts[i].colorB = parts[i]->ColorB;
 		}
 
-		std::vector<std::pair<int32_t, int32_t>> nativeMap;
+		std::vector<int> nativeMap;
 		if( axisToPartMap != nullptr ) {
 			for (int i = 0; i < axisToPartMap->Length; i++)
 			{
-				int a = axisToPartMap[i][0];
-				int b = axisToPartMap[i][1];
-				nativeMap.emplace_back(a, b);
+				nativeMap.push_back(axisToPartMap[i][0]);
+				nativeMap.push_back(axisToPartMap[i][1]);
 			}
 		}
 
-		return _native->loadRobotArm(nativeParts, nativeMap);
+		return _native->loadRobotArm(nativeParts.data(), static_cast<int>(nativeParts.size()),
+									 nativeMap.data(), static_cast<int>(nativeMap.size()));
 	}
 
 	void OccViewerControl::SetJointAngle(int axisIndex, double angleDeg)

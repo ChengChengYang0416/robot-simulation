@@ -1,7 +1,6 @@
 #pragma once
 
-#include "NativeOccView.h"
-#include <msclr/marshal_cppstd.h>
+class NativeOccView;
 
 using namespace System;
 using namespace System::Windows::Forms;
