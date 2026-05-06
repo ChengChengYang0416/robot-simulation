@@ -18,8 +18,7 @@ namespace OccBridge {
 
 	OccViewerControl::!OccViewerControl()
 	{
-		if (_native != nullptr)
-		{
+		if( _native != nullptr ) {
 			delete _native;
 			_native = nullptr;
 		}
@@ -28,8 +27,7 @@ namespace OccBridge {
 	void OccViewerControl::OnHandleCreated(EventArgs^ e)
 	{
 		UserControl::OnHandleCreated(e);
-		if (!_initialized && this->Handle != IntPtr::Zero)
-		{
+		if( !_initialized && this->Handle != IntPtr::Zero ) {
 			_native->initialize(static_cast<HWND>(this->Handle.ToPointer()));
 			_initialized = true;
 		}
@@ -38,8 +36,7 @@ namespace OccBridge {
 	void OccViewerControl::OnResize(EventArgs^ e)
 	{
 		UserControl::OnResize(e);
-		if (_initialized)
-		{
+		if( _initialized ) {
 			_native->resize(this->Width, this->Height);
 		}
 	}
@@ -47,16 +44,16 @@ namespace OccBridge {
 	void OccViewerControl::OnPaint(PaintEventArgs^ e)
 	{
 		UserControl::OnPaint(e);
-		if (_initialized)
-		{
+		if( _initialized ) {
 			_native->redraw();
 		}
 	}
 
 	bool OccViewerControl::LoadStep(String^ path, bool append)
 	{
-		if (!_initialized)
+		if( !_initialized ) {
 			return false;
+		}
 
 		std::wstring nativePath = msclr::interop::marshal_as<std::wstring>(path);
 		return _native->loadStep(nativePath, append);
@@ -64,15 +61,17 @@ namespace OccBridge {
 
 	void OccViewerControl::ClearScene()
 	{
-		if (_initialized)
+		if( _initialized ) {
 			_native->clearScene();
+		}
 	}
 
 	bool OccViewerControl::LoadRobotArm(cli::array<RobotPartInfo^>^ parts,
 										cli::array<cli::array<int>^>^ axisToPartMap)
 	{
-		if (!_initialized)
+		if( !_initialized ) {
 			return false;
+		}
 
 		std::vector<RobotPartDef> nativeParts(parts->Length);
 		for (int i = 0; i < parts->Length; i++)
@@ -92,8 +91,7 @@ namespace OccBridge {
 		}
 
 		std::vector<std::pair<int32_t, int32_t>> nativeMap;
-		if (axisToPartMap != nullptr)
-		{
+		if( axisToPartMap != nullptr ) {
 			for (int i = 0; i < axisToPartMap->Length; i++)
 			{
 				int a = axisToPartMap[i][0];
@@ -107,35 +105,39 @@ namespace OccBridge {
 
 	void OccViewerControl::SetJointAngle(int axisIndex, double angleDeg)
 	{
-		if (_initialized)
+		if( _initialized ) {
 			_native->setJointAngle(axisIndex, angleDeg);
+		}
 	}
 
 	void OccViewerControl::FitAllView()
 	{
-		if (_initialized)
+		if( _initialized ) {
 			_native->fitAll();
+		}
 	}
 
 	void OccViewerControl::SetViewIso()
 	{
-		if (_initialized)
+		if( _initialized ) {
 			_native->setViewIso();
+		}
 	}
 
 	void OccViewerControl::SetViewTop()
 	{
-		if (_initialized)
+		if( _initialized ) {
 			_native->setViewTop();
+		}
 	}
 
 	void OccViewerControl::OnMouseDown(MouseEventArgs^ e)
 	{
 		UserControl::OnMouseDown(e);
-		if (!this->Focused)
+		if( !this->Focused ) {
 			this->Focus();
-		if (_initialized)
-		{
+		}
+		if( _initialized ) {
 			_native->onMouseDown(e->X, e->Y, static_cast<int>(e->Button));
 		}
 	}
@@ -143,8 +145,7 @@ namespace OccBridge {
 	void OccViewerControl::OnMouseMove(MouseEventArgs^ e)
 	{
 		UserControl::OnMouseMove(e);
-		if (_initialized)
-		{
+		if( _initialized ) {
 			_native->onMouseMove(e->X, e->Y, static_cast<int>(e->Button));
 		}
 	}
@@ -152,8 +153,7 @@ namespace OccBridge {
 	void OccViewerControl::OnMouseUp(MouseEventArgs^ e)
 	{
 		UserControl::OnMouseUp(e);
-		if (_initialized)
-		{
+		if( _initialized ) {
 			_native->onMouseUp();
 		}
 	}
@@ -161,8 +161,7 @@ namespace OccBridge {
 	void OccViewerControl::OnMouseWheel(MouseEventArgs^ e)
 	{
 		UserControl::OnMouseWheel(e);
-		if (_initialized)
-		{
+		if( _initialized ) {
 			_native->onMouseWheel(e->Delta);
 		}
 	}

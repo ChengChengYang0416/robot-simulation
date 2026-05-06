@@ -22,20 +22,24 @@ static gp_Trsf makeDhTransform(double a, double alphaDeg, double d, double theta
 
 	// Standard DH: Rz(theta) * Tz(d) * Tx(a) * Rx(alpha)
 	gp_Trsf rz;
-	if (std::abs(thetaRad) > kEpsilon)
+	if( std::abs(thetaRad) > kEpsilon ) {
 		rz.SetRotation(gp_Ax1(gp_Pnt(0, 0, 0), gp_Dir(0, 0, 1)), thetaRad);
+	}
 
 	gp_Trsf tz;
-	if (std::abs(d) > kEpsilon)
+	if( std::abs(d) > kEpsilon ) {
 		tz.SetTranslation(gp_Vec(0, 0, d));
+	}
 
 	gp_Trsf tx;
-	if (std::abs(a) > kEpsilon)
+	if( std::abs(a) > kEpsilon ) {
 		tx.SetTranslation(gp_Vec(a, 0, 0));
+	}
 
 	gp_Trsf rx;
-	if (std::abs(alphaRad) > kEpsilon)
+	if( std::abs(alphaRad) > kEpsilon ) {
 		rx.SetRotation(gp_Ax1(gp_Pnt(0, 0, 0), gp_Dir(1, 0, 0)), alphaRad);
+	}
 
 	gp_Trsf result = rz;
 	result.Multiply(tz);
@@ -48,20 +52,24 @@ static gp_Trsf makeOffsetTransform(double tx, double ty, double tz,
 								   double rxDeg, double ryDeg, double rzDeg)
 {
 	gp_Trsf rotX;
-	if (std::abs(rxDeg) > kEpsilon)
+	if( std::abs(rxDeg) > kEpsilon ) {
 		rotX.SetRotation(gp_Ax1(gp_Pnt(0, 0, 0), gp_Dir(1, 0, 0)), rxDeg * kDegToRad);
+	}
 
 	gp_Trsf rotY;
-	if (std::abs(ryDeg) > kEpsilon)
+	if( std::abs(ryDeg) > kEpsilon ) {
 		rotY.SetRotation(gp_Ax1(gp_Pnt(0, 0, 0), gp_Dir(0, 1, 0)), ryDeg * kDegToRad);
+	}
 
 	gp_Trsf rotZ;
-	if (std::abs(rzDeg) > kEpsilon)
+	if( std::abs(rzDeg) > kEpsilon ) {
 		rotZ.SetRotation(gp_Ax1(gp_Pnt(0, 0, 0), gp_Dir(0, 0, 1)), rzDeg * kDegToRad);
+	}
 
 	gp_Trsf trans;
-	if (std::abs(tx) > kEpsilon || std::abs(ty) > kEpsilon || std::abs(tz) > kEpsilon)
+	if( std::abs(tx) > kEpsilon || std::abs(ty) > kEpsilon || std::abs(tz) > kEpsilon ) {
 		trans.SetTranslation(gp_Vec(tx, ty, tz));
+	}
 
 	// T * Rz * Ry * Rx: cancels DH rotation, placing CAD in original orientation
 	gp_Trsf result = trans;
@@ -105,8 +113,7 @@ void NativeOccView::initialize(HWND hwnd)
 
 	Handle(WNT_Window) window = new WNT_Window(reinterpret_cast<Aspect_Handle>(m_hwnd));
 	m_view->SetWindow(window);
-	if (!window->IsMapped())
-	{
+	if( !window->IsMapped() ) {
 		window->Map();
 	}
 
@@ -119,8 +126,7 @@ void NativeOccView::initialize(HWND hwnd)
 
 void NativeOccView::resize(int32_t /*width*/, int32_t /*height*/)
 {
-	if (!m_view.IsNull())
-	{
+	if( !m_view.IsNull() ) {
 		m_view->MustBeResized();
 		m_view->Redraw();
 	}
@@ -128,21 +134,18 @@ void NativeOccView::resize(int32_t /*width*/, int32_t /*height*/)
 
 void NativeOccView::redraw()
 {
-	if (!m_view.IsNull())
-	{
+	if( !m_view.IsNull() ) {
 		m_view->Redraw();
 	}
 }
 
 bool NativeOccView::loadStep(const std::wstring& filePath, bool append)
 {
-	if (m_context.IsNull())
-	{
+	if( m_context.IsNull() ) {
 		return false;
 	}
 
-	if (!append)
-	{
+	if( !append ) {
 		clearScene();
 	}
 
@@ -150,20 +153,17 @@ bool NativeOccView::loadStep(const std::wstring& filePath, bool append)
 
 	STEPControl_Reader reader;
 	const IFSelect_ReturnStatus status = reader.ReadFile(utf8Path.c_str());
-	if (status != IFSelect_RetDone)
-	{
+	if( status != IFSelect_RetDone ) {
 		return false;
 	}
 
 	const Standard_Integer roots = reader.TransferRoots();
-	if (roots <= 0)
-	{
+	if( roots <= 0 ) {
 		return false;
 	}
 
 	TopoDS_Shape shape = reader.OneShape();
-	if (shape.IsNull())
-	{
+	if( shape.IsNull() ) {
 		return false;
 	}
 
@@ -178,8 +178,9 @@ bool NativeOccView::loadStep(const std::wstring& filePath, bool append)
 bool NativeOccView::loadRobotArm(const std::vector<RobotPartDef>& parts,
 								 const std::vector<std::pair<int32_t, int32_t>>& axisToPartMap)
 {
-	if (m_context.IsNull())
+	if( m_context.IsNull() ) {
 		return false;
+	}
 
 	clearScene();
 
@@ -195,16 +196,14 @@ bool NativeOccView::loadRobotArm(const std::vector<RobotPartDef>& parts,
 
 		STEPControl_Reader reader;
 		const IFSelect_ReturnStatus status = reader.ReadFile(utf8Path.c_str());
-		if (status != IFSelect_RetDone)
-		{
+		if( status != IFSelect_RetDone ) {
 			m_originalShapes.emplace_back();
 			m_shapes.push_back(Handle(AIS_Shape)());
 			continue;
 		}
 
 		const Standard_Integer roots = reader.TransferRoots();
-		if (roots <= 0)
-		{
+		if( roots <= 0 ) {
 			m_originalShapes.emplace_back();
 			m_shapes.push_back(Handle(AIS_Shape)());
 			continue;
@@ -231,8 +230,9 @@ bool NativeOccView::loadRobotArm(const std::vector<RobotPartDef>& parts,
 
 void NativeOccView::setJointAngle(int32_t axisIndex, double angleDeg)
 {
-	if (axisIndex < 0 || axisIndex >= 6 || m_jointAngles.size() != 6)
+	if( axisIndex < 0 || axisIndex >= 6 || m_jointAngles.size() != 6 ) {
 		return;
+	}
 
 	m_jointAngles[axisIndex] = angleDeg;
 	updateRobotTransforms();
@@ -240,8 +240,9 @@ void NativeOccView::setJointAngle(int32_t axisIndex, double angleDeg)
 
 void NativeOccView::updateRobotTransforms()
 {
-	if (m_context.IsNull() || m_partDefs.empty())
+	if( m_context.IsNull() || m_partDefs.empty() ) {
 		return;
+	}
 
 	const auto n = static_cast<int32_t>(m_partDefs.size());
 
@@ -251,8 +252,7 @@ void NativeOccView::updateRobotTransforms()
 	{
 		const int32_t axisIdx = mapping.first;
 		const int32_t partIdx = mapping.second;
-		if (axisIdx >= 1 && axisIdx <= 6 && partIdx >= 0 && partIdx < n)
-		{
+		if( axisIdx >= 1 && axisIdx <= 6 && partIdx >= 0 && partIdx < n ) {
 			partJointDelta[partIdx] = m_jointAngles[axisIdx - 1];
 		}
 	}
@@ -267,21 +267,19 @@ void NativeOccView::updateRobotTransforms()
 			m_partDefs[i].dhD, theta);
 
 		const int32_t parent = m_partDefs[i].parentIdx;
-		if (parent >= 0 && parent < n)
-		{
+		if( parent >= 0 && parent < n ) {
 			dhCumulative[i] = dhCumulative[parent];
 			dhCumulative[i].Multiply(dhLocal);
-		}
-		else
-		{
+		} else {
 			dhCumulative[i] = dhLocal;
 		}
 	}
 
 	for (int32_t i = 0; i < n; ++i)
 	{
-		if (m_shapes[i].IsNull())
+		if( m_shapes[i].IsNull() ) {
 			continue;
+		}
 
 		gp_Trsf offsetTrsf = makeOffsetTransform(
 			m_partDefs[i].offset[0], m_partDefs[i].offset[1], m_partDefs[i].offset[2],
@@ -298,15 +296,15 @@ void NativeOccView::updateRobotTransforms()
 
 void NativeOccView::clearScene()
 {
-	if (m_context.IsNull())
-	{
+	if( m_context.IsNull() ) {
 		return;
 	}
 
 	for (const auto& shape : m_shapes)
 	{
-		if (!shape.IsNull())
+		if( !shape.IsNull() ) {
 			m_context->Remove(shape, Standard_False);
+		}
 	}
 	m_shapes.clear();
 	m_originalShapes.clear();
@@ -319,8 +317,7 @@ void NativeOccView::clearScene()
 
 void NativeOccView::fitAll()
 {
-	if (!m_view.IsNull())
-	{
+	if( !m_view.IsNull() ) {
 		m_view->FitAll();
 		m_view->ZFitAll();
 		m_view->Redraw();
@@ -329,8 +326,7 @@ void NativeOccView::fitAll()
 
 void NativeOccView::setViewIso()
 {
-	if (!m_view.IsNull())
-	{
+	if( !m_view.IsNull() ) {
 		m_view->SetProj(V3d_XposYnegZpos);
 		fitAll();
 	}
@@ -338,8 +334,7 @@ void NativeOccView::setViewIso()
 
 void NativeOccView::setViewTop()
 {
-	if (!m_view.IsNull())
-	{
+	if( !m_view.IsNull() ) {
 		m_view->SetProj(V3d_Zpos);
 		fitAll();
 	}
@@ -350,39 +345,29 @@ void NativeOccView::onMouseDown(int32_t x, int32_t y, int32_t button)
 	m_lastX = x;
 	m_lastY = y;
 
-	if (button == static_cast<int32_t>(MouseButton::Left))
-	{
+	if( button == static_cast<int32_t>(MouseButton::Left) ) {
 		m_isRotating = true;
-		if (!m_view.IsNull())
-		{
+		if( !m_view.IsNull() ) {
 			m_view->StartRotation(x, y);
 		}
-	}
-	else if (button == static_cast<int32_t>(MouseButton::Middle))
-	{
+	} else if( button == static_cast<int32_t>(MouseButton::Middle) ) {
 		m_isPanning = true;
 	}
 }
 
 void NativeOccView::onMouseMove(int32_t x, int32_t y, int32_t /*buttonMask*/)
 {
-	if (m_view.IsNull() || m_context.IsNull())
-	{
+	if( m_view.IsNull() || m_context.IsNull() ) {
 		return;
 	}
 
-	if (m_isRotating)
-	{
+	if( m_isRotating ) {
 		m_view->Rotation(x, y);
-	}
-	else if (m_isPanning)
-	{
+	} else if( m_isPanning ) {
 		m_view->Pan(x - m_lastX, m_lastY - y);
 		m_lastX = x;
 		m_lastY = y;
-	}
-	else
-	{
+	} else {
 		m_context->MoveTo(x, y, m_view, Standard_True);
 	}
 }
@@ -395,8 +380,9 @@ void NativeOccView::onMouseUp()
 
 void NativeOccView::onMouseWheel(int32_t delta)
 {
-	if (m_view.IsNull())
+	if( m_view.IsNull() ) {
 		return;
+	}
 
 	const double factor = (delta > 0) ? kZoomFactor : (1.0 / kZoomFactor);
 	m_view->SetZoom(factor);
