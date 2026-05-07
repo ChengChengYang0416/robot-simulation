@@ -7,10 +7,10 @@ struct RobotPartDef;
 class NativeOccView
 {
 public:
-	NativeOccView();
+	NativeOccView( void );
 	// Constructor; allocates the PIMPL implementation object
 
-	~NativeOccView();
+	~NativeOccView( void );
 	// Destructor; releases the PIMPL implementation object
 
 	void initialize(HWND hwnd);
@@ -19,7 +19,7 @@ public:
 	void resize(int width, int height);
 	// Notifies the viewer that the window size has changed and triggers a redraw
 
-	void redraw();
+	void redraw( void );
 	// Forces an immediate redraw of the 3D scene
 
 	[[nodiscard]] bool loadStep(const wchar_t* filePath, bool append);
@@ -33,16 +33,16 @@ public:
 	void setJointAngle(int axisIndex, double angleDeg);
 	// Sets the joint angle (degrees) for the given 0-based axis and updates the scene
 
-	void clearScene();
+	void clearScene( void );
 	// Removes all objects from the scene and resets robot arm state
 
-	void fitAll();
+	void fitAll( void );
 	// Auto-fits the camera to fully enclose all scene objects
 
-	void setViewIso();
+	void setViewIso( void );
 	// Switches to an isometric view projection
 
-	void setViewTop();
+	void setViewTop( void );
 	// Switches to a top-down view projection
 
 	void onMouseDown(int x, int y, int button);
@@ -51,14 +51,14 @@ public:
 	void onMouseMove(int x, int y, int buttonMask);
 	// Handles mouse move; performs rotation, pan, or cursor highlight
 
-	void onMouseUp();
+	void onMouseUp( void );
 	// Handles mouse button release; stops rotation and pan
 
 	void onMouseWheel(int delta);
 	// Handles mouse wheel; zooms in when delta > 0, zooms out when delta < 0
 
 private:
-	void updateRobotTransforms();
+	void updateRobotTransforms( void );
 	// Recomputes cumulative DH transforms for all parts based on current joint angles
 
 	struct Impl;

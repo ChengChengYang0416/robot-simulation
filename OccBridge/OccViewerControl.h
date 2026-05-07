@@ -20,13 +20,13 @@ namespace OccBridge {
 	public ref class OccViewerControl : public UserControl
 	{
 	public:
-		OccViewerControl();
+		OccViewerControl( void );
 		// Constructor; creates a NativeOccView instance and sets default control appearance
 
-		~OccViewerControl();
+		~OccViewerControl( void );
 		// Destructor; delegates to the finalizer to release native resources
 
-		!OccViewerControl();
+		!OccViewerControl( void );
 		// Finalizer; deletes the NativeOccView native object
 
 		bool LoadStep(String^ path, bool append);
@@ -39,16 +39,16 @@ namespace OccBridge {
 		void SetJointAngle(int axisIndex, double angleDeg);
 		// Sets the joint angle (degrees) for the given 0-based axis
 
-		void ClearScene();
+		void ClearScene( void );
 		// Removes all objects from the 3D scene
 
-		void FitAllView();
+		void FitAllView( void );
 		// Auto-fits the camera to show all scene objects
 
-		void SetViewIso();
+		void SetViewIso( void );
 		// Switches to an isometric view projection
 
-		void SetViewTop();
+		void SetViewTop( void );
 		// Switches to a top-down view projection
 
 	protected:

@@ -7,7 +7,7 @@
 
 namespace OccBridge {
 
-	OccViewerControl::OccViewerControl()
+	OccViewerControl::OccViewerControl( void )
 		: _native(new NativeOccView()), _initialized(false)
 	// Creates the native viewer and sets default control appearance: dark background, fill parent, no double-buffering
 	{
@@ -16,13 +16,13 @@ namespace OccBridge {
 		this->SetStyle(ControlStyles::Selectable, true);
 	}
 
-	OccViewerControl::~OccViewerControl()
+	OccViewerControl::~OccViewerControl( void )
 	// Delegates to the finalizer to release unmanaged resources
 	{
 		this->!OccViewerControl();
 	}
 
-	OccViewerControl::!OccViewerControl()
+	OccViewerControl::!OccViewerControl( void )
 	// Deletes the native viewer object to prevent memory leaks
 	{
 		if( _native != nullptr ) {
@@ -70,7 +70,7 @@ namespace OccBridge {
 		return _native->loadStep(nativePath.c_str(), append);
 	}
 
-	void OccViewerControl::ClearScene()
+	void OccViewerControl::ClearScene( void )
 	// Forwards to the native clear, releasing all AIS objects and axis state
 	{
 		if( _initialized ) {
@@ -124,7 +124,7 @@ namespace OccBridge {
 		}
 	}
 
-	void OccViewerControl::FitAllView()
+	void OccViewerControl::FitAllView( void )
 	// Forwards fit-all to the native viewer
 	{
 		if( _initialized ) {
@@ -132,7 +132,7 @@ namespace OccBridge {
 		}
 	}
 
-	void OccViewerControl::SetViewIso()
+	void OccViewerControl::SetViewIso( void )
 	// Forwards isometric view switch to the native viewer
 	{
 		if( _initialized ) {
@@ -140,7 +140,7 @@ namespace OccBridge {
 		}
 	}
 
-	void OccViewerControl::SetViewTop()
+	void OccViewerControl::SetViewTop( void )
 	// Forwards top view switch to the native viewer
 	{
 		if( _initialized ) {

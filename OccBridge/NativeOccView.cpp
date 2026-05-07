@@ -125,13 +125,13 @@ static std::string wideToUtf8(const wchar_t* wide)
 	return utf8;
 }
 
-NativeOccView::NativeOccView()
+NativeOccView::NativeOccView( void )
 	: m_impl(new Impl())
 // Allocates the PIMPL object; all OCCT members are default-initialized here
 {
 }
 
-NativeOccView::~NativeOccView()
+NativeOccView::~NativeOccView( void )
 // Releases the PIMPL object; OCCT Handles decrement their ref-count in Impl's destructor
 {
 	delete m_impl;
@@ -172,7 +172,7 @@ void NativeOccView::resize(int /*width*/, int /*height*/)
 	}
 }
 
-void NativeOccView::redraw()
+void NativeOccView::redraw( void )
 // Requests an immediate OCCT View redraw without recalculating scene structure
 {
 	if( !m_impl->view.IsNull() ) {
@@ -285,7 +285,7 @@ void NativeOccView::setJointAngle(int axisIndex, double angleDeg)
 	updateRobotTransforms();
 }
 
-void NativeOccView::updateRobotTransforms()
+void NativeOccView::updateRobotTransforms( void )
 // Applies the cumulative DH transform multiplied by the offset transform to each part
 // via SetLocalTransformation, updating positions in-place
 {
@@ -343,7 +343,7 @@ void NativeOccView::updateRobotTransforms()
 	m_impl->context->UpdateCurrentViewer();
 }
 
-void NativeOccView::clearScene()
+void NativeOccView::clearScene( void )
 // Removes all AIS objects from the Context and clears all internal state containers
 {
 	if( m_impl->context.IsNull() ) {
@@ -365,7 +365,7 @@ void NativeOccView::clearScene()
 	redraw();
 }
 
-void NativeOccView::fitAll()
+void NativeOccView::fitAll( void )
 // Calls FitAll and ZFitAll to ensure the scene is fully visible in both axes
 {
 	if( !m_impl->view.IsNull() ) {
@@ -375,7 +375,7 @@ void NativeOccView::fitAll()
 	}
 }
 
-void NativeOccView::setViewIso()
+void NativeOccView::setViewIso( void )
 // Sets projection to X+Y-Z+ for an isometric look, then fits all
 {
 	if( !m_impl->view.IsNull() ) {
@@ -384,7 +384,7 @@ void NativeOccView::setViewIso()
 	}
 }
 
-void NativeOccView::setViewTop()
+void NativeOccView::setViewTop( void )
 // Sets projection to Z+ (top-down) then fits all
 {
 	if( !m_impl->view.IsNull() ) {
@@ -427,7 +427,7 @@ void NativeOccView::onMouseMove(int x, int y, int /*buttonMask*/)
 	}
 }
 
-void NativeOccView::onMouseUp()
+void NativeOccView::onMouseUp( void )
 // Clears rotation and pan flags, ending the interactive operation
 {
 	m_impl->isRotating = false;
