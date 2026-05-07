@@ -127,15 +127,18 @@ static std::string wideToUtf8(const wchar_t* wide)
 
 NativeOccView::NativeOccView()
 	: m_impl(new Impl())
+// Allocates the PIMPL object; all OCCT members are default-initialized here
 {
 }
 
 NativeOccView::~NativeOccView()
+// Releases the PIMPL object; OCCT Handles decrement their ref-count in Impl's destructor
 {
 	delete m_impl;
 }
 
 void NativeOccView::initialize(HWND hwnd)
+// Creates the OCCT driver, Viewer, Context, and View, then binds them to the Win32 window
 {
 	m_impl->hwnd = hwnd;
 
@@ -161,6 +164,7 @@ void NativeOccView::initialize(HWND hwnd)
 }
 
 void NativeOccView::resize(int /*width*/, int /*height*/)
+// Notifies the OCCT View that the window size changed and triggers a redraw
 {
 	if( !m_impl->view.IsNull() ) {
 		m_impl->view->MustBeResized();
@@ -169,6 +173,7 @@ void NativeOccView::resize(int /*width*/, int /*height*/)
 }
 
 void NativeOccView::redraw()
+// Requests an immediate OCCT View redraw without recalculating scene structure
 {
 	if( !m_impl->view.IsNull() ) {
 		m_impl->view->Redraw();
@@ -176,6 +181,7 @@ void NativeOccView::redraw()
 }
 
 bool NativeOccView::loadStep(const wchar_t* filePath, bool append)
+// Converts the path to UTF-8 and parses the geometry using STEPControl_Reader
 {
 	if( m_impl->context.IsNull() ) {
 		return false;
@@ -213,6 +219,7 @@ bool NativeOccView::loadStep(const wchar_t* filePath, bool append)
 
 bool NativeOccView::loadRobotArm(const RobotPartDef* parts, int partCount,
 								 const int* axisToPartMap, int mapCount)
+// Reads each STEP part, applies its color, then computes the initial DH transforms
 {
 	if( m_impl->context.IsNull() ) {
 		return false;
@@ -268,6 +275,7 @@ bool NativeOccView::loadRobotArm(const RobotPartDef* parts, int partCount,
 }
 
 void NativeOccView::setJointAngle(int axisIndex, double angleDeg)
+// Updates the given axis angle and triggers a full DH cumulative transform recalculation
 {
 	if( axisIndex < 0 || axisIndex >= 6 || m_impl->jointAngles.size() != 6 ) {
 		return;
@@ -278,6 +286,8 @@ void NativeOccView::setJointAngle(int axisIndex, double angleDeg)
 }
 
 void NativeOccView::updateRobotTransforms()
+// Applies the cumulative DH transform multiplied by the offset transform to each part
+// via SetLocalTransformation, updating positions in-place
 {
 	if( m_impl->context.IsNull() || m_impl->partDefs.empty() ) {
 		return;
@@ -334,6 +344,7 @@ void NativeOccView::updateRobotTransforms()
 }
 
 void NativeOccView::clearScene()
+// Removes all AIS objects from the Context and clears all internal state containers
 {
 	if( m_impl->context.IsNull() ) {
 		return;
@@ -355,6 +366,7 @@ void NativeOccView::clearScene()
 }
 
 void NativeOccView::fitAll()
+// Calls FitAll and ZFitAll to ensure the scene is fully visible in both axes
 {
 	if( !m_impl->view.IsNull() ) {
 		m_impl->view->FitAll();
@@ -364,6 +376,7 @@ void NativeOccView::fitAll()
 }
 
 void NativeOccView::setViewIso()
+// Sets projection to X+Y-Z+ for an isometric look, then fits all
 {
 	if( !m_impl->view.IsNull() ) {
 		m_impl->view->SetProj(V3d_XposYnegZpos);
@@ -372,6 +385,7 @@ void NativeOccView::setViewIso()
 }
 
 void NativeOccView::setViewTop()
+// Sets projection to Z+ (top-down) then fits all
 {
 	if( !m_impl->view.IsNull() ) {
 		m_impl->view->SetProj(V3d_Zpos);
@@ -380,6 +394,7 @@ void NativeOccView::setViewTop()
 }
 
 void NativeOccView::onMouseDown(int x, int y, int button)
+// Records the start position; left button begins OCCT rotation, middle button begins pan
 {
 	m_impl->lastX = x;
 	m_impl->lastY = y;
@@ -395,6 +410,7 @@ void NativeOccView::onMouseDown(int x, int y, int button)
 }
 
 void NativeOccView::onMouseMove(int x, int y, int /*buttonMask*/)
+// Executes rotation or pan based on active flags; otherwise updates cursor highlight
 {
 	if( m_impl->view.IsNull() || m_impl->context.IsNull() ) {
 		return;
@@ -412,12 +428,14 @@ void NativeOccView::onMouseMove(int x, int y, int /*buttonMask*/)
 }
 
 void NativeOccView::onMouseUp()
+// Clears rotation and pan flags, ending the interactive operation
 {
 	m_impl->isRotating = false;
 	m_impl->isPanning = false;
 }
 
 void NativeOccView::onMouseWheel(int delta)
+// Zooms the scene by a fixed factor based on wheel direction
 {
 	if( m_impl->view.IsNull() ) {
 		return;
