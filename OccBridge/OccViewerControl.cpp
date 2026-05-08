@@ -13,7 +13,7 @@ namespace OccBridge {
 	{
 		this->Dock = DockStyle::Fill;
 		this->DoubleBuffered = false;
-		this->SetStyle(ControlStyles::Selectable, true);
+		this->SetStyle( ControlStyles::Selectable, true );
 	}
 
 	OccViewerControl::~OccViewerControl( void )
@@ -36,7 +36,7 @@ namespace OccBridge {
 	{
 		UserControl::OnHandleCreated( e );
 		if( !_initialized && this->Handle != IntPtr::Zero ) {
-			_native->initialize( static_cast<HWND>(this->Handle.ToPointer()) );
+			_native->initialize( static_cast<HWND>( this->Handle.ToPointer() ) );
 			_initialized = true;
 		}
 	}
@@ -87,28 +87,27 @@ namespace OccBridge {
 		}
 
 		std::vector<RobotPartDef> nativeParts( parts->Length );
-		for (int i = 0; i < parts->Length; i++)
-		{
-			System::String^ fp = parts[i]->FilePath;
-			nativeParts[i].filePath = msclr::interop::marshal_as<std::wstring>( fp );
-			nativeParts[i].dhA = parts[i]->DH_a;
-			nativeParts[i].dhAlpha = parts[i]->DH_alpha;
-			nativeParts[i].dhD = parts[i]->DH_d;
-			nativeParts[i].dhTheta = parts[i]->DH_theta;
-			for (int j = 0; j < 6; j++)
-				nativeParts[i].offset[j] = parts[i]->Offset[j];
-			nativeParts[i].parentIdx = parts[i]->ParentIdx;
-			nativeParts[i].colorR = parts[i]->ColorR;
-			nativeParts[i].colorG = parts[i]->ColorG;
-			nativeParts[i].colorB = parts[i]->ColorB;
+		for( int i = 0; i < parts->Length; i++ ) {
+			System::String^ fp = parts[ i ]->FilePath;
+			nativeParts[ i ].filePath = msclr::interop::marshal_as<std::wstring>( fp );
+			nativeParts[ i ].dhA = parts[ i ]->DH_a;
+			nativeParts[ i ].dhAlpha = parts[ i ]->DH_alpha;
+			nativeParts[ i ].dhD = parts[ i ]->DH_d;
+			nativeParts[ i ].dhTheta = parts[ i ]->DH_theta;
+			for( int j = 0; j < 6; j++ ) {
+				nativeParts[ i ].offset[ j ] = parts[ i ]->Offset[ j ];
+			}
+			nativeParts[ i ].parentIdx = parts[ i ]->ParentIdx;
+			nativeParts[ i ].colorR = parts[ i ]->ColorR;
+			nativeParts[ i ].colorG = parts[ i ]->ColorG;
+			nativeParts[ i ].colorB = parts[ i ]->ColorB;
 		}
 
 		std::vector<int> nativeMap;
 		if( axisToPartMap != nullptr ) {
-			for (int i = 0; i < axisToPartMap->Length; i++)
-			{
-				nativeMap.push_back( axisToPartMap[i][0] );
-				nativeMap.push_back( axisToPartMap[i][1] );
+			for( int i = 0; i < axisToPartMap->Length; i++ ) {
+				nativeMap.push_back( axisToPartMap[ i ][ 0 ] );
+				nativeMap.push_back( axisToPartMap[ i ][ 1 ] );
 			}
 		}
 
