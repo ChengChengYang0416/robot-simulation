@@ -31,43 +31,43 @@ namespace OccBridge {
 		}
 	}
 
-	void OccViewerControl::OnHandleCreated(EventArgs^ e)
+	void OccViewerControl::OnHandleCreated( EventArgs^ e )
 	// Initializes OCCT the first time the window handle is ready; skips if already initialized
 	{
-		UserControl::OnHandleCreated(e);
+		UserControl::OnHandleCreated( e );
 		if( !_initialized && this->Handle != IntPtr::Zero ) {
-			_native->initialize(static_cast<HWND>(this->Handle.ToPointer()));
+			_native->initialize( static_cast<HWND>(this->Handle.ToPointer()) );
 			_initialized = true;
 		}
 	}
 
-	void OccViewerControl::OnResize(EventArgs^ e)
+	void OccViewerControl::OnResize( EventArgs^ e )
 	// Notifies OCCT to adjust the viewport when the window is resized
 	{
-		UserControl::OnResize(e);
+		UserControl::OnResize( e );
 		if( _initialized ) {
-			_native->resize(this->Width, this->Height);
+			_native->resize( this->Width, this->Height );
 		}
 	}
 
-	void OccViewerControl::OnPaint(PaintEventArgs^ e)
+	void OccViewerControl::OnPaint( PaintEventArgs^ e )
 	// Delegates WinForms repaint to OCCT redraw to prevent blank flicker
 	{
-		UserControl::OnPaint(e);
+		UserControl::OnPaint( e );
 		if( _initialized ) {
 			_native->redraw();
 		}
 	}
 
-	bool OccViewerControl::LoadStep(String^ path, bool append)
+	bool OccViewerControl::LoadStep( String^ path, bool append )
 	// Marshals the managed string to a native wide string and forwards to the native loader
 	{
 		if( !_initialized ) {
 			return false;
 		}
 
-		std::wstring nativePath = msclr::interop::marshal_as<std::wstring>(path);
-		return _native->loadStep(nativePath.c_str(), append);
+		std::wstring nativePath = msclr::interop::marshal_as<std::wstring>( path );
+		return _native->loadStep( nativePath.c_str(), append );
 	}
 
 	void OccViewerControl::ClearScene( void )
@@ -78,19 +78,19 @@ namespace OccBridge {
 		}
 	}
 
-	bool OccViewerControl::LoadRobotArm(cli::array<RobotPartInfo^>^ parts,
-										cli::array<cli::array<int>^>^ axisToPartMap)
+	bool OccViewerControl::LoadRobotArm( cli::array<RobotPartInfo^>^ parts,
+								 cli::array<cli::array<int>^>^ axisToPartMap )
 	// Converts the managed arrays to native structs and forwards to the native loader
 	{
 		if( !_initialized ) {
 			return false;
 		}
 
-		std::vector<RobotPartDef> nativeParts(parts->Length);
+		std::vector<RobotPartDef> nativeParts( parts->Length );
 		for (int i = 0; i < parts->Length; i++)
 		{
 			System::String^ fp = parts[i]->FilePath;
-			nativeParts[i].filePath = msclr::interop::marshal_as<std::wstring>(fp);
+			nativeParts[i].filePath = msclr::interop::marshal_as<std::wstring>( fp );
 			nativeParts[i].dhA = parts[i]->DH_a;
 			nativeParts[i].dhAlpha = parts[i]->DH_alpha;
 			nativeParts[i].dhD = parts[i]->DH_d;
@@ -107,20 +107,20 @@ namespace OccBridge {
 		if( axisToPartMap != nullptr ) {
 			for (int i = 0; i < axisToPartMap->Length; i++)
 			{
-				nativeMap.push_back(axisToPartMap[i][0]);
-				nativeMap.push_back(axisToPartMap[i][1]);
+				nativeMap.push_back( axisToPartMap[i][0] );
+				nativeMap.push_back( axisToPartMap[i][1] );
 			}
 		}
 
-		return _native->loadRobotArm(nativeParts.data(), static_cast<int>(nativeParts.size()),
-									 nativeMap.data(), static_cast<int>(nativeMap.size()));
+		return _native->loadRobotArm( nativeParts.data(), static_cast<int>( nativeParts.size() ),
+									  nativeMap.data(), static_cast<int>( nativeMap.size() ) );
 	}
 
-	void OccViewerControl::SetJointAngle(int axisIndex, double angleDeg)
+	void OccViewerControl::SetJointAngle( int axisIndex, double angleDeg )
 	// Forwards the joint angle to the native viewer
 	{
 		if( _initialized ) {
-			_native->setJointAngle(axisIndex, angleDeg);
+			_native->setJointAngle( axisIndex, angleDeg );
 		}
 	}
 
@@ -148,42 +148,42 @@ namespace OccBridge {
 		}
 	}
 
-	void OccViewerControl::OnMouseDown(MouseEventArgs^ e)
+	void OccViewerControl::OnMouseDown( MouseEventArgs^ e )
 	// Ensures the control has keyboard focus, then forwards mouse-down to the native viewer
 	{
-		UserControl::OnMouseDown(e);
+		UserControl::OnMouseDown( e );
 		if( !this->Focused ) {
 			this->Focus();
 		}
 		if( _initialized ) {
-			_native->onMouseDown(e->X, e->Y, static_cast<int>(e->Button));
+			_native->onMouseDown( e->X, e->Y, static_cast<int>( e->Button ) );
 		}
 	}
 
-	void OccViewerControl::OnMouseMove(MouseEventArgs^ e)
+	void OccViewerControl::OnMouseMove( MouseEventArgs^ e )
 	// Forwards mouse-move to the native viewer for rotation, pan, or highlight update
 	{
-		UserControl::OnMouseMove(e);
+		UserControl::OnMouseMove( e );
 		if( _initialized ) {
-			_native->onMouseMove(e->X, e->Y, static_cast<int>(e->Button));
+			_native->onMouseMove( e->X, e->Y, static_cast<int>( e->Button ) );
 		}
 	}
 
-	void OccViewerControl::OnMouseUp(MouseEventArgs^ e)
+	void OccViewerControl::OnMouseUp( MouseEventArgs^ e )
 	// Forwards mouse-up to the native viewer to stop rotation and pan
 	{
-		UserControl::OnMouseUp(e);
+		UserControl::OnMouseUp( e );
 		if( _initialized ) {
-			_native->onMouseUp();
+			_native->onMouseUp( );
 		}
 	}
 
-	void OccViewerControl::OnMouseWheel(MouseEventArgs^ e)
+	void OccViewerControl::OnMouseWheel( MouseEventArgs^ e )
 	// Forwards mouse-wheel to the native viewer to zoom the 3D scene
 	{
-		UserControl::OnMouseWheel(e);
+		UserControl::OnMouseWheel( e );
 		if( _initialized ) {
-			_native->onMouseWheel(e->Delta);
+			_native->onMouseWheel( e->Delta );
 		}
 	}
 

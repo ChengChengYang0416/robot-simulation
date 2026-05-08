@@ -137,7 +137,7 @@ NativeOccView::~NativeOccView( void )
 	delete m_impl;
 }
 
-void NativeOccView::initialize(HWND hwnd)
+void NativeOccView::initialize( HWND hwnd )
 // Creates the OCCT driver, Viewer, Context, and View, then binds them to the Win32 window
 {
 	m_impl->hwnd = hwnd;
@@ -150,20 +150,20 @@ void NativeOccView::initialize(HWND hwnd)
 	m_impl->context = new AIS_InteractiveContext(m_impl->viewer);
 	m_impl->view = m_impl->viewer->CreateView();
 
-	Handle(WNT_Window) window = new WNT_Window(reinterpret_cast<Aspect_Handle>(m_impl->hwnd));
+	Handle(WNT_Window) window = new WNT_Window( reinterpret_cast<Aspect_Handle>(m_impl->hwnd) );
 	m_impl->view->SetWindow(window);
 	if( !window->IsMapped() ) {
 		window->Map();
 	}
 
-	m_impl->view->SetBackgroundColor(Quantity_NOC_GRAY30);
-	m_impl->view->TriedronDisplay(Aspect_TOTP_LEFT_LOWER, Quantity_NOC_WHITE, 0.08, V3d_ZBUFFER);
+	m_impl->view->SetBackgroundColor( Quantity_NOC_GRAY30 );
+	m_impl->view->TriedronDisplay( Aspect_TOTP_LEFT_LOWER, Quantity_NOC_WHITE, 0.08, V3d_ZBUFFER );
 	m_impl->view->MustBeResized();
-	m_impl->view->SetProj(V3d_XposYnegZpos);
+	m_impl->view->SetProj( V3d_XposYnegZpos );
 	m_impl->view->Redraw();
 }
 
-void NativeOccView::resize(int /*width*/, int /*height*/)
+void NativeOccView::resize( int /*width*/, int /*height*/ )
 // Notifies the OCCT View that the window size changed and triggers a redraw
 {
 	if( !m_impl->view.IsNull() ) {
@@ -180,7 +180,7 @@ void NativeOccView::redraw( void )
 	}
 }
 
-bool NativeOccView::loadStep(const wchar_t* filePath, bool append)
+bool NativeOccView::loadStep( const wchar_t* filePath, bool append )
 // Converts the path to UTF-8 and parses the geometry using STEPControl_Reader
 {
 	if( m_impl->context.IsNull() ) {
@@ -210,15 +210,15 @@ bool NativeOccView::loadStep(const wchar_t* filePath, bool append)
 	}
 
 	Handle(AIS_Shape) aisShape = new AIS_Shape(shape);
-	m_impl->context->Display(aisShape, Standard_False);
-	m_impl->context->SetDisplayMode(aisShape, 1, Standard_False);
+		m_impl->context->Display( aisShape, Standard_False );
+		m_impl->context->SetDisplayMode( aisShape, 1, Standard_False );
 	m_impl->shapes.push_back(aisShape);
 	fitAll();
 	return true;
 }
 
-bool NativeOccView::loadRobotArm(const RobotPartDef* parts, int partCount,
-								 const int* axisToPartMap, int mapCount)
+bool NativeOccView::loadRobotArm( const RobotPartDef* parts, int partCount,
+								  const int* axisToPartMap, int mapCount )
 // Reads each STEP part, applies its color, then computes the initial DH transforms
 {
 	if( m_impl->context.IsNull() ) {
@@ -264,8 +264,8 @@ bool NativeOccView::loadRobotArm(const RobotPartDef* parts, int partCount,
 			parts[i].colorG / 255.0,
 			parts[i].colorB / 255.0,
 			Quantity_TOC_sRGB);
-		m_impl->context->Display(aisShape, 1, -1, Standard_False);
-		m_impl->context->SetColor(aisShape, qColor, Standard_False);
+		m_impl->context->Display( aisShape, 1, -1, Standard_False );
+		m_impl->context->SetColor( aisShape, qColor, Standard_False );
 		m_impl->shapes.push_back(aisShape);
 	}
 
@@ -274,7 +274,7 @@ bool NativeOccView::loadRobotArm(const RobotPartDef* parts, int partCount,
 	return !m_impl->shapes.empty();
 }
 
-void NativeOccView::setJointAngle(int axisIndex, double angleDeg)
+void NativeOccView::setJointAngle( int axisIndex, double angleDeg )
 // Updates the given axis angle and triggers a full DH cumulative transform recalculation
 {
 	if( axisIndex < 0 || axisIndex >= 6 || m_impl->jointAngles.size() != 6 ) {
@@ -313,7 +313,7 @@ void NativeOccView::updateRobotTransforms( void )
 		const double theta = m_impl->partDefs[i].dhTheta + partJointDelta[i];
 		gp_Trsf dhLocal = makeDhTransform(
 			m_impl->partDefs[i].dhA, m_impl->partDefs[i].dhAlpha,
-			m_impl->partDefs[i].dhD, theta);
+			m_impl->partDefs[i].dhD, theta );
 
 		const int parent = m_impl->partDefs[i].parentIdx;
 		if( parent >= 0 && parent < n ) {
@@ -332,12 +332,12 @@ void NativeOccView::updateRobotTransforms( void )
 
 		gp_Trsf offsetTrsf = makeOffsetTransform(
 			m_impl->partDefs[i].offset[0], m_impl->partDefs[i].offset[1], m_impl->partDefs[i].offset[2],
-			m_impl->partDefs[i].offset[3], m_impl->partDefs[i].offset[4], m_impl->partDefs[i].offset[5]);
+			m_impl->partDefs[i].offset[3], m_impl->partDefs[i].offset[4], m_impl->partDefs[i].offset[5] );
 
 		gp_Trsf finalTrsf = dhCumulative[i];
 		finalTrsf.Multiply(offsetTrsf);
 
-		m_impl->shapes[i]->SetLocalTransformation(finalTrsf);
+		m_impl->shapes[i]->SetLocalTransformation( finalTrsf );
 	}
 
 	m_impl->context->UpdateCurrentViewer();
@@ -353,7 +353,7 @@ void NativeOccView::clearScene( void )
 	for (const auto& shape : m_impl->shapes)
 	{
 		if( !shape.IsNull() ) {
-			m_impl->context->Remove(shape, Standard_False);
+			m_impl->context->Remove( shape, Standard_False );
 		}
 	}
 	m_impl->shapes.clear();
@@ -388,12 +388,12 @@ void NativeOccView::setViewTop( void )
 // Sets projection to Z+ (top-down) then fits all
 {
 	if( !m_impl->view.IsNull() ) {
-		m_impl->view->SetProj(V3d_Zpos);
+		m_impl->view->SetProj( V3d_Zpos );
 		fitAll();
 	}
 }
 
-void NativeOccView::onMouseDown(int x, int y, int button)
+void NativeOccView::onMouseDown( int x, int y, int button )
 // Records the start position; left button begins OCCT rotation, middle button begins pan
 {
 	m_impl->lastX = x;
@@ -402,14 +402,14 @@ void NativeOccView::onMouseDown(int x, int y, int button)
 	if( button == static_cast<int>(MouseButton::Left) ) {
 		m_impl->isRotating = true;
 		if( !m_impl->view.IsNull() ) {
-			m_impl->view->StartRotation(x, y);
+			m_impl->view->StartRotation( x, y );
 		}
 	} else if( button == static_cast<int>(MouseButton::Middle) ) {
 		m_impl->isPanning = true;
 	}
 }
 
-void NativeOccView::onMouseMove(int x, int y, int /*buttonMask*/)
+void NativeOccView::onMouseMove( int x, int y, int /*buttonMask*/ )
 // Executes rotation or pan based on active flags; otherwise updates cursor highlight
 {
 	if( m_impl->view.IsNull() || m_impl->context.IsNull() ) {
@@ -417,13 +417,13 @@ void NativeOccView::onMouseMove(int x, int y, int /*buttonMask*/)
 	}
 
 	if( m_impl->isRotating ) {
-		m_impl->view->Rotation(x, y);
+		m_impl->view->Rotation( x, y );
 	} else if( m_impl->isPanning ) {
-		m_impl->view->Pan(x - m_impl->lastX, m_impl->lastY - y);
+		m_impl->view->Pan( x - m_impl->lastX, m_impl->lastY - y );
 		m_impl->lastX = x;
 		m_impl->lastY = y;
 	} else {
-		m_impl->context->MoveTo(x, y, m_impl->view, Standard_True);
+		m_impl->context->MoveTo( x, y, m_impl->view, Standard_True );
 	}
 }
 
@@ -434,7 +434,7 @@ void NativeOccView::onMouseUp( void )
 	m_impl->isPanning = false;
 }
 
-void NativeOccView::onMouseWheel(int delta)
+void NativeOccView::onMouseWheel( int delta )
 // Zooms the scene by a fixed factor based on wheel direction
 {
 	if( m_impl->view.IsNull() ) {
@@ -442,6 +442,6 @@ void NativeOccView::onMouseWheel(int delta)
 	}
 
 	const double factor = (delta > 0) ? kZoomFactor : (1.0 / kZoomFactor);
-	m_impl->view->SetZoom(factor);
+	m_impl->view->SetZoom( factor );
 	m_impl->view->Redraw();
 }

@@ -13,24 +13,24 @@ public:
 	~NativeOccView( void );
 	// Destructor; releases the PIMPL implementation object
 
-	void initialize(HWND hwnd);
+	void initialize( HWND hwnd );
 	// Initializes the OCCT 3D viewer and binds it to the given window handle
 
-	void resize(int width, int height);
+	void resize( int width, int height );
 	// Notifies the viewer that the window size has changed and triggers a redraw
 
 	void redraw( void );
 	// Forces an immediate redraw of the 3D scene
 
-	[[nodiscard]] bool loadStep(const wchar_t* filePath, bool append);
+	[[nodiscard]] bool loadStep( const wchar_t* filePath, bool append );
 	// Loads a STEP file; clears the scene first when append is false; returns true on success
 
-	[[nodiscard]] bool loadRobotArm(const RobotPartDef* parts, int partCount,
-									const int* axisToPartMap, int mapCount);
+	[[nodiscard]] bool loadRobotArm( const RobotPartDef* parts, int partCount,
+									 const int* axisToPartMap, int mapCount );
 	// Loads robot arm parts and builds the DH kinematic chain
 	// axisToPartMap is an interleaved [axisIdx, partIdx] array of length mapCount
 
-	void setJointAngle(int axisIndex, double angleDeg);
+	void setJointAngle( int axisIndex, double angleDeg );
 	// Sets the joint angle (degrees) for the given 0-based axis and updates the scene
 
 	void clearScene( void );
@@ -45,16 +45,16 @@ public:
 	void setViewTop( void );
 	// Switches to a top-down view projection
 
-	void onMouseDown(int x, int y, int button);
+	void onMouseDown( int x, int y, int button );
 	// Handles mouse button press; begins rotation (left button) or pan (middle button)
 
-	void onMouseMove(int x, int y, int buttonMask);
+	void onMouseMove( int x, int y, int buttonMask );
 	// Handles mouse move; performs rotation, pan, or cursor highlight
 
 	void onMouseUp( void );
 	// Handles mouse button release; stops rotation and pan
 
-	void onMouseWheel(int delta);
+	void onMouseWheel( int delta );
 	// Handles mouse wheel; zooms in when delta > 0, zooms out when delta < 0
 
 private:

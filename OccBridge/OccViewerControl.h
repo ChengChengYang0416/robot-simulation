@@ -29,14 +29,14 @@ namespace OccBridge {
 		!OccViewerControl( void );
 		// Finalizer; deletes the NativeOccView native object
 
-		bool LoadStep(String^ path, bool append);
+		bool LoadStep( String^ path, bool append );
 		// Loads the STEP file at the given path; clears the scene first when append is false
 
-		bool LoadRobotArm(cli::array<RobotPartInfo^>^ parts,
-						  cli::array<cli::array<int>^>^ axisToPartMap);
+		bool LoadRobotArm( cli::array<RobotPartInfo^>^ parts,
+					   cli::array<cli::array<int>^>^ axisToPartMap );
 		// Loads robot arm parts and the axis-to-part mapping, building the DH kinematic chain
 
-		void SetJointAngle(int axisIndex, double angleDeg);
+		void SetJointAngle( int axisIndex, double angleDeg );
 		// Sets the joint angle (degrees) for the given 0-based axis
 
 		void ClearScene( void );
@@ -52,25 +52,25 @@ namespace OccBridge {
 		// Switches to a top-down view projection
 
 	protected:
-		virtual void OnHandleCreated(EventArgs^ e) override;
+		virtual void OnHandleCreated( EventArgs^ e ) override;
 		// Called once the window handle is created; initializes the OCCT viewer
 
-		virtual void OnResize(EventArgs^ e) override;
+		virtual void OnResize( EventArgs^ e ) override;
 		// Notifies OCCT to adjust the viewport when the window is resized
 
-		virtual void OnPaint(PaintEventArgs^ e) override;
+		virtual void OnPaint( PaintEventArgs^ e ) override;
 		// Delegates WinForms repaint to OCCT redraw to prevent blank flicker
 
-		virtual void OnMouseDown(MouseEventArgs^ e) override;
+		virtual void OnMouseDown( MouseEventArgs^ e ) override;
 		// Forwards mouse-down events to the native viewer
 
-		virtual void OnMouseMove(MouseEventArgs^ e) override;
+		virtual void OnMouseMove( MouseEventArgs^ e ) override;
 		// Forwards mouse-move events to the native viewer
 
-		virtual void OnMouseUp(MouseEventArgs^ e) override;
+		virtual void OnMouseUp( MouseEventArgs^ e ) override;
 		// Forwards mouse-up events to the native viewer
 
-		virtual void OnMouseWheel(MouseEventArgs^ e) override;
+		virtual void OnMouseWheel( MouseEventArgs^ e ) override;
 		// Forwards mouse-wheel events to the native viewer
 
 	private:
