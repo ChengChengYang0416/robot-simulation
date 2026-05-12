@@ -27,99 +27,90 @@ namespace Hmi
 			TxtStatus.Text = "Viewer initialized, waiting for model.";
 		}
 
-		private void BtnOpenFolder_Click(object sender, RoutedEventArgs e)
+		private void BtnOpenFolder_Click( object sender, RoutedEventArgs e )
 		{
 			var dialog = new System.Windows.Forms.FolderBrowserDialog
 			{
 				Description = "Select a folder containing .step and .json files"
 			};
 
-			if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
-			{
-				LoadRobotFromFolder(dialog.SelectedPath);
+			if( dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK ) {
+				LoadRobotFromFolder( dialog.SelectedPath );
 			}
 		}
 
-		private void LoadRobotFromFolder(string folderPath)
+		private void LoadRobotFromFolder( string folderPath )
 		{
-			var jsonFiles = Directory.GetFiles(folderPath, "*.json");
-			if (jsonFiles.Length == 0)
-			{
+			var jsonFiles = Directory.GetFiles( folderPath, "*.json" );
+			if( jsonFiles.Length == 0 ) {
 				TxtStatus.Text = "No .json config file found in the selected folder.";
 				return;
 			}
-			var jsonPath = jsonFiles[0];
+			var jsonPath = jsonFiles[ 0 ];
 
-			try
-			{
-				var json = File.ReadAllText(jsonPath);
+			try {
+				var json = File.ReadAllText( jsonPath );
 				var serializer = new JavaScriptSerializer();
-				var data = serializer.Deserialize<Dictionary<string, object>>(json);
-				var partInfos = (ArrayList)data["PartInfos"];
+				var data = serializer.Deserialize<Dictionary<string, object>>( json );
+				var partInfos = (ArrayList)data[ "PartInfos" ];
 
-				var parts = new RobotPartInfo[partInfos.Count];
-				for (int i = 0; i < partInfos.Count; i++)
-				{
-					var p = (Dictionary<string, object>)partInfos[i];
+				var parts = new RobotPartInfo[ partInfos.Count ];
+				for( int i = 0; i < partInfos.Count; i++ ) {
+					var p = (Dictionary<string, object>)partInfos[ i ];
 					var part = new RobotPartInfo();
 
-					var cadFilePath = (string)p["CadFilePath"];
-					var cadFileName = Path.GetFileName(cadFilePath);
-					part.FilePath = Path.Combine(folderPath, cadFileName);
+					var cadFilePath = (string)p[ "CadFilePath" ];
+					var cadFileName = Path.GetFileName( cadFilePath );
+					part.FilePath = Path.Combine( folderPath, cadFileName );
 
-					part.DH_a = Convert.ToDouble(p["a"]);
-					part.DH_alpha = Convert.ToDouble(p["alpha"]);
-					part.DH_d = Convert.ToDouble(p["d"]);
-					part.DH_theta = Convert.ToDouble(p["theta"]);
-					part.Offset = ParseDoubleArray((string)p["Offset"]);
-					part.ParentIdx = Convert.ToInt32(p["ParentDHIdx"]);
+					part.DH_a = Convert.ToDouble( p[ "a" ] );
+					part.DH_alpha = Convert.ToDouble( p[ "alpha" ] );
+					part.DH_d = Convert.ToDouble( p[ "d" ] );
+					part.DH_theta = Convert.ToDouble( p[ "theta" ] );
+					part.Offset = ParseDoubleArray( (string)p[ "Offset" ] );
+					part.ParentIdx = Convert.ToInt32( p[ "ParentDHIdx" ] );
 
-					var colors = ParseDoubleArray((string)p["CadColor"]);
-					part.ColorR = (int)colors[0];
-					part.ColorG = (int)colors[1];
-					part.ColorB = (int)colors[2];
+					var colors = ParseDoubleArray( (string)p[ "CadColor" ] );
+					part.ColorR = (int)colors[ 0 ];
+					part.ColorG = (int)colors[ 1 ];
+					part.ColorB = (int)colors[ 2 ];
 
-					parts[i] = part;
+					parts[ i ] = part;
 				}
 
-				var axisMapRaw = ParseNestedIntArray((string)data["AxisToPartMap"]);
+				var axisMapRaw = ParseNestedIntArray( (string)data[ "AxisToPartMap" ] );
 
 				// Apply AxisLimits from JSON to sliders
-				if (data.ContainsKey("AxisLimits"))
-				{
-					var limits = ParseNestedDoubleArray((string)data["AxisLimits"]);
-					ApplyAxisLimits(limits);
+				if( data.ContainsKey( "AxisLimits" ) ) {
+					var limits = ParseNestedDoubleArray( (string)data[ "AxisLimits" ] );
+					ApplyAxisLimits( limits );
 				}
 
-				if (_viewer.LoadRobotArm(parts, axisMapRaw))
-				{
+				if( _viewer.LoadRobotArm( parts, axisMapRaw ) ) {
 					_robotLoaded = true;
 					ResetSliders();
-					TxtStatus.Text = $"Loaded: {Path.GetFileName(jsonPath)}, {parts.Length} part(s).";
-				}
-				else
-				{
+					TxtStatus.Text = $"Loaded: {Path.GetFileName( jsonPath )}, {parts.Length} part(s).";
+				} else {
 					TxtStatus.Text = "Failed to load robot arm.";
 				}
-			}
-			catch (Exception ex)
-			{
+			} catch( Exception ex ) {
 				TxtStatus.Text = $"Load error: {ex.Message}";
 			}
 		}
 
-		private static double[] ParseDoubleArray(string s)
+		private static double[] ParseDoubleArray( string s )
 		{
 			// Parse "[1.0,2.0,3.0]" -> double[]
-			s = s.Trim('[', ']', ' ');
-			var parts = s.Split(',');
-			var result = new double[parts.Length];
-			for (int i = 0; i < parts.Length; i++)
-				result[i] = double.Parse(parts[i].Trim(), CultureInfo.InvariantCulture);
+			s = s.Trim( '[', ']', ' ' );
+			var parts = s.Split( ',' );
+			var result = new double[ parts.Length ];
+			for( int i = 0; i < parts.Length; i++ ) {
+				result[ i ] = double.Parse( parts[ i ].Trim(), CultureInfo.InvariantCulture );
+			}
 			return result;
 		}
 
-		private void BtnClear_Click(object sender, RoutedEventArgs e)
+		private void BtnClear_Click( object sender, RoutedEventArgs e )
 		{
 			_viewer.ClearScene();
 			_robotLoaded = false;
@@ -127,85 +118,91 @@ namespace Hmi
 			TxtStatus.Text = "Scene cleared.";
 		}
 
-		private void BtnIso_Click(object sender, RoutedEventArgs e)
+		private void BtnIso_Click( object sender, RoutedEventArgs e )
 		{
 			_viewer.SetViewIso();
 		}
 
-		private void BtnTop_Click(object sender, RoutedEventArgs e)
+		private void BtnTop_Click( object sender, RoutedEventArgs e )
 		{
 			_viewer.SetViewTop();
 		}
 
-		private void BtnFitAll_Click(object sender, RoutedEventArgs e)
+		private void BtnFitAll_Click( object sender, RoutedEventArgs e )
 		{
 			_viewer.FitAllView();
 		}
 
-		private void Slider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+		private void Slider_ValueChanged( object sender, RoutedPropertyChangedEventArgs<double> e )
 		{
-			if (!_robotLoaded)
+			if( !_robotLoaded ) {
 				return;
+			}
 
 			var slider = (System.Windows.Controls.Slider)sender;
-			int axisIndex = int.Parse(slider.Tag.ToString());
-			double angle = Math.Round(slider.Value);
+			int axisIndex = int.Parse( slider.Tag.ToString() );
+			double angle = Math.Round( slider.Value );
 
-			_viewer.SetJointAngle(axisIndex, angle);
+			_viewer.SetJointAngle( axisIndex, angle );
 
-			if (_jointLabels != null && axisIndex >= 0 && axisIndex < _jointLabels.Length)
-				_jointLabels[axisIndex].Text = $"{(int)angle}°";
+			if( _jointLabels != null && axisIndex >= 0 && axisIndex < _jointLabels.Length ) {
+				_jointLabels[ axisIndex ].Text = $"{(int)angle}°";
+			}
 		}
 
 		private void ResetSliders()
 		{
 			var sliders = new[] { SliderJ1, SliderJ2, SliderJ3, SliderJ4, SliderJ5, SliderJ6 };
-			foreach (var s in sliders)
-			{
-				if (s != null) s.Value = 0;
+			foreach( var s in sliders ) {
+				if( s != null ) {
+					s.Value = 0;
+				}
 			}
-			if (_jointLabels != null)
-			{
-				foreach (var lbl in _jointLabels)
-				{
-					if (lbl != null) lbl.Text = "0°";
+			if( _jointLabels != null ) {
+				foreach( var lbl in _jointLabels ) {
+					if( lbl != null ) {
+						lbl.Text = "0°";
+					}
 				}
 			}
 		}
 
-		private void ApplyAxisLimits(double[][] limits)
+		private void ApplyAxisLimits( double[][] limits )
 		{
 			var sliders = new[] { SliderJ1, SliderJ2, SliderJ3, SliderJ4, SliderJ5, SliderJ6 };
-			for (int i = 0; i < Math.Min(limits.Length, sliders.Length); i++)
-			{
-				if (limits[i].Length >= 2 && sliders[i] != null)
-				{
-					sliders[i].Minimum = limits[i][0];
-					sliders[i].Maximum = limits[i][1];
+			for( int i = 0; i < Math.Min( limits.Length, sliders.Length ); i++ ) {
+				if( limits[ i ].Length >= 2 && sliders[ i ] != null ) {
+					sliders[ i ].Minimum = limits[ i ][ 0 ];
+					sliders[ i ].Maximum = limits[ i ][ 1 ];
 				}
 			}
 		}
 
-		private static double[][] ParseNestedDoubleArray(string s)
+		private static double[][] ParseNestedDoubleArray( string s )
 		{
 			s = s.Trim();
-			if (s.StartsWith("[")) s = s.Substring(1);
-			if (s.EndsWith("]")) s = s.Substring(0, s.Length - 1);
+			if( s.StartsWith( "[" ) ) {
+				s = s.Substring( 1 );
+			}
+			if( s.EndsWith( "]" ) ) {
+				s = s.Substring( 0, s.Length - 1 );
+			}
 
 			var result = new List<double[]>();
 			int depth = 0;
 			int start = -1;
-			for (int i = 0; i < s.Length; i++)
-			{
-				if (s[i] == '[') { depth++; if (depth == 1) start = i + 1; }
-				else if (s[i] == ']')
-				{
+			for( int i = 0; i < s.Length; i++ ) {
+				if( s[ i ] == '[' ) {
+					depth++;
+					if( depth == 1 ) {
+						start = i + 1;
+					}
+				} else if( s[ i ] == ']' ) {
 					depth--;
-					if (depth == 0 && start >= 0)
-					{
-						var inner = s.Substring(start, i - start);
-						var vals = inner.Split(',');
-						result.Add(vals.Select(v => double.Parse(v.Trim(), CultureInfo.InvariantCulture)).ToArray());
+					if( depth == 0 && start >= 0 ) {
+						var inner = s.Substring( start, i - start );
+						var vals = inner.Split( ',' );
+						result.Add( vals.Select( v => double.Parse( v.Trim(), CultureInfo.InvariantCulture ) ).ToArray() );
 						start = -1;
 					}
 				}
@@ -213,28 +210,33 @@ namespace Hmi
 			return result.ToArray();
 		}
 
-		private static int[][] ParseNestedIntArray(string s)
+		private static int[][] ParseNestedIntArray( string s )
 		{
 			// Parse "[[1,1],[2,2],[3,3]]" -> int[][]
 			// Only strip the outermost brackets
 			s = s.Trim();
-			if (s.StartsWith("[")) s = s.Substring(1);
-			if (s.EndsWith("]")) s = s.Substring(0, s.Length - 1);
+			if( s.StartsWith( "[" ) ) {
+				s = s.Substring( 1 );
+			}
+			if( s.EndsWith( "]" ) ) {
+				s = s.Substring( 0, s.Length - 1 );
+			}
 
 			var result = new List<int[]>();
 			int depth = 0;
 			int start = -1;
-			for (int i = 0; i < s.Length; i++)
-			{
-				if (s[i] == '[') { depth++; if (depth == 1) start = i + 1; }
-				else if (s[i] == ']')
-				{
+			for( int i = 0; i < s.Length; i++ ) {
+				if( s[ i ] == '[' ) {
+					depth++;
+					if( depth == 1 ) {
+						start = i + 1;
+					}
+				} else if( s[ i ] == ']' ) {
 					depth--;
-					if (depth == 0 && start >= 0)
-					{
-						var inner = s.Substring(start, i - start);
-						var vals = inner.Split(',');
-						result.Add(vals.Select(v => int.Parse(v.Trim())).ToArray());
+					if( depth == 0 && start >= 0 ) {
+						var inner = s.Substring( start, i - start );
+						var vals = inner.Split( ',' );
+						result.Add( vals.Select( v => int.Parse( v.Trim() ) ).ToArray() );
 						start = -1;
 					}
 				}
