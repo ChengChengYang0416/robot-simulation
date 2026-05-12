@@ -24,14 +24,14 @@ namespace Hmi
             _viewer = new OccViewerControl();
             WinFormsHost.Child = _viewer;
             _jointLabels = new[] { LblJ1, LblJ2, LblJ3, LblJ4, LblJ5, LblJ6 };
-            TxtStatus.Text = "Viewer 已建立，等待載入模型。";
+            TxtStatus.Text = "Viewer initialized, waiting for model.";
         }
 
         private void BtnOpenFolder_Click(object sender, RoutedEventArgs e)
         {
             var dialog = new System.Windows.Forms.FolderBrowserDialog
             {
-                Description = "選擇包含 .step 和 .json 的模型資料夾"
+                Description = "Select a folder containing .step and .json files"
             };
 
             if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
@@ -45,7 +45,7 @@ namespace Hmi
             var jsonFiles = Directory.GetFiles(folderPath, "*.json");
             if (jsonFiles.Length == 0)
             {
-                TxtStatus.Text = "資料夾中找不到 .json 設定檔。";
+                TxtStatus.Text = "No .json config file found in the selected folder.";
                 return;
             }
             var jsonPath = jsonFiles[0];
@@ -95,16 +95,16 @@ namespace Hmi
                 {
                     _robotLoaded = true;
                     ResetSliders();
-                    TxtStatus.Text = $"已載入: {Path.GetFileName(jsonPath)}，共 {parts.Length} 個零件。";
+                    TxtStatus.Text = $"Loaded: {Path.GetFileName(jsonPath)}, {parts.Length} part(s).";
                 }
                 else
                 {
-                    TxtStatus.Text = "機械手臂載入失敗。";
+                    TxtStatus.Text = "Failed to load robot arm.";
                 }
             }
             catch (Exception ex)
             {
-                TxtStatus.Text = $"載入失敗: {ex.Message}";
+                TxtStatus.Text = $"Load error: {ex.Message}";
             }
         }
 
@@ -124,7 +124,7 @@ namespace Hmi
             _viewer.ClearScene();
             _robotLoaded = false;
             ResetSliders();
-            TxtStatus.Text = "場景已清空。";
+            TxtStatus.Text = "Scene cleared.";
         }
 
         private void BtnIso_Click(object sender, RoutedEventArgs e)

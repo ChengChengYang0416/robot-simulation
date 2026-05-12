@@ -14,14 +14,14 @@
             <StackPanel Margin="16">
                 <TextBlock Text="RobotSimulation" FontSize="24" FontWeight="Bold" Margin="0,0,0,18" />
 
-                <GroupBox Header="模型" Margin="0,0,0,12">
+                <GroupBox Header="Model" Margin="0,0,0,12">
                     <StackPanel Margin="10">
-                        <Button Name="BtnOpenFolder" Content="開啟模型資料夾" Height="34" Margin="0,0,0,8" Click="BtnOpenFolder_Click"/>
-                        <Button Name="BtnClear" Content="清空場景" Height="34" Click="BtnClear_Click"/>
+                        <Button Name="BtnOpenFolder" Content="Open Model Folder" Height="34" Margin="0,0,0,8" Click="BtnOpenFolder_Click"/>
+                        <Button Name="BtnClear" Content="Clear Scene" Height="34" Click="BtnClear_Click"/>
                     </StackPanel>
                 </GroupBox>
 
-                <GroupBox Header="視角" Margin="0,0,0,12">
+                <GroupBox Header="View" Margin="0,0,0,12">
                     <StackPanel Orientation="Horizontal" Margin="10">
                         <Button Content="ISO" Width="80" Height="30" Margin="0,0,8,0" Click="BtnIso_Click"/>
                         <Button Content="Top" Width="80" Height="30" Margin="0,0,8,0" Click="BtnTop_Click"/>
@@ -29,7 +29,7 @@
                     </StackPanel>
                 </GroupBox>
 
-                <GroupBox Header="關節角度" Margin="0,0,0,12">
+                <GroupBox Header="Joint Angles" Margin="0,0,0,12">
                     <Grid Margin="10">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
@@ -71,7 +71,7 @@
                     </Grid>
                 </GroupBox>
 
-                <TextBlock Name="TxtStatus" Margin="2,8,0,0" TextWrapping="Wrap" Foreground="#444" Text="準備就緒"/>
+                <TextBlock Name="TxtStatus" Margin="2,8,0,0" TextWrapping="Wrap" Foreground="#444" Text="Ready"/>
             </StackPanel>
         </DockPanel>
 
