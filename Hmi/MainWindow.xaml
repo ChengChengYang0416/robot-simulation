@@ -4,32 +4,30 @@
         xmlns:wf="clr-namespace:System.Windows.Forms;assembly=System.Windows.Forms"
         xmlns:wfi="clr-namespace:System.Windows.Forms.Integration;assembly=WindowsFormsIntegration"
         Title="RobotSimulation" Height="700" Width="1100" MinHeight="700" MinWidth="1100">
-    <Grid>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="320"/>
-            <ColumnDefinition Width="*"/>
-        </Grid.ColumnDefinitions>
+    <DockPanel>
+        <Menu DockPanel.Dock="Top">
+            <MenuItem Header="_File">
+                <MenuItem Header="Open Model Folder" Click="BtnOpenFolder_Click"/>
+                <MenuItem Header="Clear Scene" Click="BtnClear_Click"/>
+            </MenuItem>
+            <MenuItem Header="_View">
+                <MenuItem Header="ISO" Click="BtnIso_Click"/>
+                <MenuItem Header="Top" Click="BtnTop_Click"/>
+                <MenuItem Header="Fit All" Click="BtnFitAll_Click"/>
+            </MenuItem>
+        </Menu>
 
-        <DockPanel Grid.Column="0" Background="#F3F4F6" LastChildFill="True">
-            <StackPanel Margin="16">
-                <TextBlock Text="RobotSimulation" FontSize="24" FontWeight="Bold" Margin="0,0,0,18" />
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="320"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
 
-                <GroupBox Header="Model" Margin="0,0,0,12">
-                    <StackPanel Margin="10">
-                        <Button Name="BtnOpenFolder" Content="Open Model Folder" Height="34" Margin="0,0,0,8" Click="BtnOpenFolder_Click"/>
-                        <Button Name="BtnClear" Content="Clear Scene" Height="34" Click="BtnClear_Click"/>
-                    </StackPanel>
-                </GroupBox>
+            <DockPanel Grid.Column="0" Background="#F3F4F6" LastChildFill="True">
+                <StackPanel Margin="16">
+                    <TextBlock Text="RobotSimulation" FontSize="24" FontWeight="Bold" Margin="0,0,0,18" />
 
-                <GroupBox Header="View" Margin="0,0,0,12">
-                    <StackPanel Orientation="Horizontal" Margin="10">
-                        <Button Content="ISO" Width="80" Height="30" Margin="0,0,8,0" Click="BtnIso_Click"/>
-                        <Button Content="Top" Width="80" Height="30" Margin="0,0,8,0" Click="BtnTop_Click"/>
-                        <Button Content="FitAll" Width="80" Height="30" Click="BtnFitAll_Click"/>
-                    </StackPanel>
-                </GroupBox>
-
-                <GroupBox Header="Joint Angles" Margin="0,0,0,12">
+                    <GroupBox Header="Joint Angles" Margin="0,0,0,12">
                     <Grid Margin="10">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
@@ -72,13 +70,14 @@
                 </GroupBox>
 
                 <TextBlock Name="TxtStatus" Margin="2,8,0,0" TextWrapping="Wrap" Foreground="#444" Text="Ready"/>
-            </StackPanel>
-        </DockPanel>
+                </StackPanel>
+            </DockPanel>
 
-        <Border Grid.Column="1" Margin="8" CornerRadius="8" BorderBrush="#D1D5DB" BorderThickness="1" Background="#2E2E2E">
-            <wfi:WindowsFormsHost Name="WinFormsHost" Margin="0">
-                <wf:Panel x:Name="DesignPlaceholder" BackColor="#2E2E2E" />
-            </wfi:WindowsFormsHost>
-        </Border>
-    </Grid>
+            <Border Grid.Column="1" Margin="8" CornerRadius="8" BorderBrush="#D1D5DB" BorderThickness="1" Background="#2E2E2E">
+                <wfi:WindowsFormsHost Name="WinFormsHost" Margin="0">
+                    <wf:Panel x:Name="DesignPlaceholder" BackColor="#2E2E2E" />
+                </wfi:WindowsFormsHost>
+            </Border>
+        </Grid>
+    </DockPanel>
 </Window>
