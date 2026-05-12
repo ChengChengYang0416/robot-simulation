@@ -35,12 +35,12 @@ struct NativeOccView::Impl
 	bool isRotating = false;
 	bool isPanning  = false;
 
-	Handle(Aspect_DisplayConnection) displayConnection;
-	Handle(OpenGl_GraphicDriver) graphicDriver;
-	Handle(V3d_Viewer) viewer;
-	Handle(V3d_View) view;
-	Handle(AIS_InteractiveContext) context;
-	std::vector<Handle(AIS_Shape)> shapes;
+	Handle( Aspect_DisplayConnection ) displayConnection;
+	Handle( OpenGl_GraphicDriver ) graphicDriver;
+	Handle( V3d_Viewer ) viewer;
+	Handle( V3d_View ) view;
+	Handle( AIS_InteractiveContext ) context;
+	std::vector<Handle( AIS_Shape )> shapes;
 
 	std::vector<RobotPartDef> partDefs;
 	std::vector<TopoDS_Shape> originalShapes;
@@ -126,7 +126,7 @@ static std::string wideToUtf8( const wchar_t* wide )
 }
 
 NativeOccView::NativeOccView( void )
-	: m_impl(new Impl())
+	: m_impl( new Impl() )
 // Allocates the PIMPL object; all OCCT members are default-initialized here
 {
 }
@@ -150,7 +150,7 @@ void NativeOccView::initialize( HWND hwnd )
 	m_impl->context = new AIS_InteractiveContext( m_impl->viewer );
 	m_impl->view = m_impl->viewer->CreateView();
 
-	Handle(WNT_Window) window = new WNT_Window( reinterpret_cast<Aspect_Handle>( m_impl->hwnd ) );
+	Handle( WNT_Window ) window = new WNT_Window( reinterpret_cast<Aspect_Handle>( m_impl->hwnd ) );
 	m_impl->view->SetWindow( window );
 	if( !window->IsMapped() ) {
 		window->Map();
@@ -209,7 +209,7 @@ bool NativeOccView::loadStep( const wchar_t* filePath, bool append )
 		return false;
 	}
 
-	Handle(AIS_Shape) aisShape = new AIS_Shape( shape );
+	Handle( AIS_Shape ) aisShape = new AIS_Shape( shape );
 	m_impl->context->Display( aisShape, Standard_False );
 	m_impl->context->SetDisplayMode( aisShape, 1, Standard_False );
 	m_impl->shapes.push_back( aisShape );
@@ -243,21 +243,21 @@ bool NativeOccView::loadRobotArm( const RobotPartDef* parts, int partCount,
 		const IFSelect_ReturnStatus status = reader.ReadFile( utf8Path.c_str() );
 		if( status != IFSelect_RetDone ) {
 			m_impl->originalShapes.emplace_back();
-			m_impl->shapes.push_back( Handle(AIS_Shape)() );
+			m_impl->shapes.push_back( Handle( AIS_Shape )() );
 			continue;
 		}
 
 		const Standard_Integer roots = reader.TransferRoots();
 		if( roots <= 0 ) {
 			m_impl->originalShapes.emplace_back();
-			m_impl->shapes.push_back( Handle(AIS_Shape)() );
+			m_impl->shapes.push_back( Handle( AIS_Shape )() );
 			continue;
 		}
 
 		TopoDS_Shape shape = reader.OneShape();
 		m_impl->originalShapes.push_back( shape );
 
-		Handle(AIS_Shape) aisShape = new AIS_Shape( shape );
+		Handle( AIS_Shape ) aisShape = new AIS_Shape( shape );
 		const Quantity_Color qColor(
 			parts[ i ].colorR / 255.0,
 			parts[ i ].colorG / 255.0,

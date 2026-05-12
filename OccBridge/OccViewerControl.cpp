@@ -8,7 +8,7 @@
 namespace OccBridge {
 
 	OccViewerControl::OccViewerControl( void )
-		: _native(new NativeOccView()), _initialized(false)
+		: _native( new NativeOccView() ), _initialized( false )
 	// Creates the native viewer and sets default control appearance: dark background, fill parent, no double-buffering
 	{
 		this->Dock = DockStyle::Fill;
