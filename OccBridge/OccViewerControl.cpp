@@ -79,7 +79,8 @@ namespace OccBridge {
 	}
 
 	bool OccViewerControl::LoadRobotArm( cli::array<RobotPartInfo^>^ parts,
-								 cli::array<cli::array<int>^>^ axisToPartMap )
+								 cli::array<cli::array<int>^>^ axisToPartMap,
+								 Action<int, int>^ progress )
 	// Converts the managed arrays to native structs and forwards to the native loader
 	{
 		if( !_initialized ) {
@@ -111,8 +112,21 @@ namespace OccBridge {
 			}
 		}
 
-		return _native->loadRobotArm( nativeParts.data(), static_cast<int>( nativeParts.size() ),
-									  nativeMap.data(), static_cast<int>( nativeMap.size() ) );
+		const int n = parts->Length;
+		if( !_native->beginRobotArm( nativeParts.data(), n,
+									 nativeMap.data(), static_cast<int>( nativeMap.size() ) ) ) {
+			return false;
+		}
+
+		for( int i = 0; i < n; i++ ) {
+			if( progress != nullptr ) {
+				progress->Invoke( i + 1, n );
+			}
+			(void)_native->loadRobotPart( i );
+		}
+
+		_native->endRobotArm();
+		return true;
 	}
 
 	void OccViewerControl::SetJointAngle( int axisIndex, double angleDeg )

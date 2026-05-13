@@ -33,8 +33,9 @@ namespace OccBridge {
 		// Loads the STEP file at the given path; clears the scene first when append is false
 
 		bool LoadRobotArm( cli::array<RobotPartInfo^>^ parts,
-					   cli::array<cli::array<int>^>^ axisToPartMap );
-		// Loads robot arm parts and the axis-to-part mapping, building the DH kinematic chain
+					   cli::array<cli::array<int>^>^ axisToPartMap,
+					   Action<int, int>^ progress );
+		// Loads robot arm parts with per-part progress callback (current, total)
 
 		void SetJointAngle( int axisIndex, double angleDeg );
 		// Sets the joint angle (degrees) for the given 0-based axis

@@ -9,6 +9,7 @@ using System.Linq;
 using System.Web.Script.Serialization;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Threading;
 
 namespace Hmi
 {
@@ -86,7 +87,10 @@ namespace Hmi
 					ApplyAxisLimits( limits );
 				}
 
-				if( _viewer.LoadRobotArm( parts, axisMapRaw ) ) {
+				if( _viewer.LoadRobotArm( parts, axisMapRaw, ( current, total ) => {
+					TxtStatus.Text = $"Loading part {current}/{total}...";
+					Dispatcher.Invoke( DispatcherPriority.Render, new Action( () => { } ) );
+				} ) ) {
 					_robotLoaded = true;
 					ResetSliders();
 					TxtStatus.Text = $"Loaded: {Path.GetFileName( jsonPath )}, {parts.Length} part(s).";

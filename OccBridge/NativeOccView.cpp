@@ -217,9 +217,9 @@ bool NativeOccView::loadStep( const wchar_t* filePath, bool append )
 	return true;
 }
 
-bool NativeOccView::loadRobotArm( const RobotPartDef* parts, int partCount,
-								  const int* axisToPartMap, int mapCount )
-// Reads each STEP part, applies its color, then computes the initial DH transforms
+bool NativeOccView::beginRobotArm( const RobotPartDef* parts, int partCount,
+								   const int* axisToPartMap, int mapCount )
+// Clears the scene and stores part definitions, axis mapping, and joint angles
 {
 	if( m_impl->context.IsNull() ) {
 		return false;
@@ -233,44 +233,54 @@ bool NativeOccView::loadRobotArm( const RobotPartDef* parts, int partCount,
 		m_impl->axisToPartMap.emplace_back( axisToPartMap[ i ], axisToPartMap[ i + 1 ] );
 	}
 	m_impl->jointAngles.assign( 6, 0.0 );
+	return true;
+}
 
-	const int n = partCount;
-
-	for( int i = 0; i < n; ++i ) {
-		const std::string utf8Path = wideToUtf8( parts[ i ].filePath.c_str() );
-
-		STEPControl_Reader reader;
-		const IFSelect_ReturnStatus status = reader.ReadFile( utf8Path.c_str() );
-		if( status != IFSelect_RetDone ) {
-			m_impl->originalShapes.emplace_back();
-			m_impl->shapes.push_back( Handle( AIS_Shape )() );
-			continue;
-		}
-
-		const Standard_Integer roots = reader.TransferRoots();
-		if( roots <= 0 ) {
-			m_impl->originalShapes.emplace_back();
-			m_impl->shapes.push_back( Handle( AIS_Shape )() );
-			continue;
-		}
-
-		TopoDS_Shape shape = reader.OneShape();
-		m_impl->originalShapes.push_back( shape );
-
-		Handle( AIS_Shape ) aisShape = new AIS_Shape( shape );
-		const Quantity_Color qColor(
-			parts[ i ].colorR / 255.0,
-			parts[ i ].colorG / 255.0,
-			parts[ i ].colorB / 255.0,
-			Quantity_TOC_sRGB );
-		m_impl->context->Display( aisShape, 1, -1, Standard_False );
-		m_impl->context->SetColor( aisShape, qColor, Standard_False );
-		m_impl->shapes.push_back( aisShape );
+bool NativeOccView::loadRobotPart( int index )
+// Reads one STEP file, creates its AIS_Shape with color, and adds it to the context
+{
+	if( index < 0 || index >= static_cast<int>( m_impl->partDefs.size() ) ) {
+		return false;
 	}
 
+	const auto& part = m_impl->partDefs[ index ];
+	const std::string utf8Path = wideToUtf8( part.filePath.c_str() );
+
+	STEPControl_Reader reader;
+	const IFSelect_ReturnStatus status = reader.ReadFile( utf8Path.c_str() );
+	if( status != IFSelect_RetDone ) {
+		m_impl->originalShapes.emplace_back();
+		m_impl->shapes.push_back( Handle( AIS_Shape )() );
+		return false;
+	}
+
+	const Standard_Integer roots = reader.TransferRoots();
+	if( roots <= 0 ) {
+		m_impl->originalShapes.emplace_back();
+		m_impl->shapes.push_back( Handle( AIS_Shape )() );
+		return false;
+	}
+
+	TopoDS_Shape shape = reader.OneShape();
+	m_impl->originalShapes.push_back( shape );
+
+	Handle( AIS_Shape ) aisShape = new AIS_Shape( shape );
+	const Quantity_Color qColor(
+		part.colorR / 255.0,
+		part.colorG / 255.0,
+		part.colorB / 255.0,
+		Quantity_TOC_sRGB );
+	m_impl->context->Display( aisShape, 1, -1, Standard_False );
+	m_impl->context->SetColor( aisShape, qColor, Standard_False );
+	m_impl->shapes.push_back( aisShape );
+	return true;
+}
+
+void NativeOccView::endRobotArm( void )
+// Computes cumulative DH transforms and fits the camera to the full scene
+{
 	updateRobotTransforms();
 	fitAll();
-	return !m_impl->shapes.empty();
 }
 
 void NativeOccView::setJointAngle( int axisIndex, double angleDeg )

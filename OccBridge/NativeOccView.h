@@ -25,10 +25,15 @@ public:
 	[[nodiscard]] bool loadStep( const wchar_t* filePath, bool append );
 	// Loads a STEP file; clears the scene first when append is false; returns true on success
 
-	[[nodiscard]] bool loadRobotArm( const RobotPartDef* parts, int partCount,
-									 const int* axisToPartMap, int mapCount );
-	// Loads robot arm parts and builds the DH kinematic chain
-	// axisToPartMap is an interleaved [axisIdx, partIdx] array of length mapCount
+	[[nodiscard]] bool beginRobotArm( const RobotPartDef* parts, int partCount,
+									  const int* axisToPartMap, int mapCount );
+	// Clears the scene and stores part definitions, axis mapping, and joint angles
+
+	[[nodiscard]] bool loadRobotPart( int index );
+	// Loads a single STEP file for the given part index and displays it with its color
+
+	void endRobotArm( void );
+	// Finalizes the robot arm by computing DH transforms and fitting the view
 
 	void setJointAngle( int axisIndex, double angleDeg );
 	// Sets the joint angle (degrees) for the given 0-based axis and updates the scene
