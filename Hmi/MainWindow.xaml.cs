@@ -89,7 +89,10 @@ namespace Hmi
 
 				if( _viewer.LoadRobotArm( parts, axisMapRaw, ( current, total ) => {
 					TxtStatus.Text = $"Loading part {current}/{total}...";
-					Dispatcher.Invoke( DispatcherPriority.Render, new Action( () => { } ) );
+					var frame = new DispatcherFrame();
+					Dispatcher.CurrentDispatcher.BeginInvoke( DispatcherPriority.Background,
+						new Action( () => frame.Continue = false ) );
+					Dispatcher.PushFrame( frame );
 				} ) ) {
 					_robotLoaded = true;
 					ResetSliders();
