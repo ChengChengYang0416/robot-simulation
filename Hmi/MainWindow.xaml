@@ -17,9 +17,9 @@
             </MenuItem>
         </Menu>
 
-        <StatusBar DockPanel.Dock="Bottom">
+        <StatusBar Name="StatusBarMain" DockPanel.Dock="Bottom" Background="#4CAF50">
             <StatusBarItem HorizontalContentAlignment="Center" HorizontalAlignment="Stretch">
-                <TextBlock Name="TxtStatus" TextWrapping="Wrap" Foreground="#444" Text="Ready"/>
+                <TextBlock Name="TxtStatus" TextWrapping="Wrap" Foreground="White" Text="Ready"/>
             </StatusBarItem>
         </StatusBar>
 

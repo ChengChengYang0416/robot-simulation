@@ -9,6 +9,7 @@ using System.Linq;
 using System.Web.Script.Serialization;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using System.Windows.Threading;
 
 namespace Hmi
@@ -25,7 +26,16 @@ namespace Hmi
 			_viewer = new OccViewerControl();
 			WinFormsHost.Child = _viewer;
 			_jointLabels = new[] { LblJ1, LblJ2, LblJ3, LblJ4, LblJ5, LblJ6 };
-			TxtStatus.Text = "Viewer initialized, waiting for model.";
+			SetStatus( "Ready" );
+		}
+
+		private static readonly SolidColorBrush BrushGreen = new SolidColorBrush( Color.FromRgb( 0x4C, 0xAF, 0x50 ) );
+		private static readonly SolidColorBrush BrushOrange = new SolidColorBrush( Color.FromRgb( 0xFF, 0x98, 0x00 ) );
+
+		private void SetStatus( string text, bool loading = false )
+		{
+			TxtStatus.Text = text;
+			StatusBarMain.Background = loading ? BrushOrange : BrushGreen;
 		}
 
 		private void BtnOpenFolder_Click( object sender, RoutedEventArgs e )
@@ -44,7 +54,7 @@ namespace Hmi
 		{
 			var jsonFiles = Directory.GetFiles( folderPath, "*.json" );
 			if( jsonFiles.Length == 0 ) {
-				TxtStatus.Text = "No .json config file found in the selected folder.";
+				SetStatus( "No .json config file found in the selected folder." );
 				return;
 			}
 			var jsonPath = jsonFiles[ 0 ];
@@ -88,7 +98,7 @@ namespace Hmi
 				}
 
 				if( _viewer.LoadRobotArm( parts, axisMapRaw, ( current, total ) => {
-					TxtStatus.Text = $"Loading part {current}/{total}...";
+					SetStatus( $"Loading part {current}/{total}...", true );
 					var frame = new DispatcherFrame();
 					Dispatcher.CurrentDispatcher.BeginInvoke( DispatcherPriority.Background,
 						new Action( () => frame.Continue = false ) );
@@ -96,12 +106,12 @@ namespace Hmi
 				} ) ) {
 					_robotLoaded = true;
 					ResetSliders();
-					TxtStatus.Text = $"Loaded: {Path.GetFileName( jsonPath )}, {parts.Length} part(s).";
+					SetStatus( $"Loaded: {Path.GetFileName( jsonPath )}, {parts.Length} part(s)." );
 				} else {
-					TxtStatus.Text = "Failed to load robot arm.";
+					SetStatus( "Failed to load robot arm." );
 				}
 			} catch( Exception ex ) {
-				TxtStatus.Text = $"Load error: {ex.Message}";
+				SetStatus( $"Load error: {ex.Message}" );
 			}
 		}
 
@@ -122,7 +132,7 @@ namespace Hmi
 			_viewer.ClearScene();
 			_robotLoaded = false;
 			ResetSliders();
-			TxtStatus.Text = "Scene cleared.";
+			SetStatus( "Scene cleared." );
 		}
 
 		private void BtnIso_Click( object sender, RoutedEventArgs e )
