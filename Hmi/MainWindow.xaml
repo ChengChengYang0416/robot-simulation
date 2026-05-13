@@ -17,6 +17,12 @@
             </MenuItem>
         </Menu>
 
+        <StatusBar DockPanel.Dock="Bottom">
+            <StatusBarItem HorizontalContentAlignment="Center" HorizontalAlignment="Stretch">
+                <TextBlock Name="TxtStatus" TextWrapping="Wrap" Foreground="#444" Text="Ready"/>
+            </StatusBarItem>
+        </StatusBar>
+
         <Grid>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="320"/>
@@ -66,8 +72,6 @@
                         <TextBlock Name="LblJ6" Grid.Row="5" Grid.Column="2" VerticalAlignment="Center" Text="0°"/>
                     </Grid>
                 </GroupBox>
-
-                <TextBlock Name="TxtStatus" Margin="2,8,0,0" TextWrapping="Wrap" Foreground="#444" Text="Ready"/>
                 </StackPanel>
             </DockPanel>
 
