@@ -11,7 +11,9 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Interop;
 using System.Windows.Threading;
+using System.Runtime.InteropServices;
 
 namespace Hmi
 {
@@ -42,14 +44,61 @@ namespace Hmi
 
 		private void BtnOpenFolder_Click( object sender, RoutedEventArgs e )
 		{
-			var dialog = new System.Windows.Forms.FolderBrowserDialog
-			{
-				Description = "Select a folder containing .step and .json files"
-			};
-
-			if( dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK ) {
-				LoadRobotFromFolder( dialog.SelectedPath );
+			var path = ShowFolderDialog( "Select a folder containing .step and .json files" );
+			if( path != null ) {
+				LoadRobotFromFolder( path );
 			}
+		}
+
+		private string ShowFolderDialog( string title )
+		{
+			var dialog = (IFileOpenDialog)new FileOpenDialog();
+			dialog.GetOptions( out var options );
+			dialog.SetOptions( options | 0x00000020 ); // FOS_PICKFOLDERS
+			dialog.SetTitle( title );
+			var hwnd = new WindowInteropHelper( this ).Handle;
+			if( dialog.Show( hwnd ) != 0 ) {
+				return null;
+			}
+			dialog.GetResult( out var item );
+			item.GetDisplayName( 0x80058000, out var folderPath ); // SIGDN_FILESYSPATH
+			return folderPath;
+		}
+
+		[ComImport, Guid( "DC1C5A9C-E88A-4DDE-A5A1-60F82A20AEF7" )]
+		private class FileOpenDialog { }
+
+		[ComImport, Guid( "D57C7288-D4AD-4768-BE02-9D969532D960" ),
+		 InterfaceType( ComInterfaceType.InterfaceIsIUnknown )]
+		private interface IFileOpenDialog
+		{
+			[PreserveSig] int Show( IntPtr hwndOwner );
+			void SetFileTypes( uint cFileTypes, IntPtr rgFilterSpec );
+			void SetFileTypeIndex( uint iFileType );
+			void GetFileTypeIndex( out uint piFileType );
+			void Advise( IntPtr pfde, out uint pdwCookie );
+			void Unadvise( uint dwCookie );
+			void SetOptions( uint fos );
+			void GetOptions( out uint pfos );
+			void SetDefaultFolder( IShellItem psi );
+			void SetFolder( IShellItem psi );
+			void GetFolder( out IShellItem ppsi );
+			void GetCurrentSelection( out IShellItem ppsi );
+			void SetFileName( [MarshalAs( UnmanagedType.LPWStr )] string pszName );
+			void GetFileName( [MarshalAs( UnmanagedType.LPWStr )] out string pszName );
+			void SetTitle( [MarshalAs( UnmanagedType.LPWStr )] string pszTitle );
+			void SetOkButtonLabel( [MarshalAs( UnmanagedType.LPWStr )] string pszText );
+			void SetFileNameLabel( [MarshalAs( UnmanagedType.LPWStr )] string pszLabel );
+			void GetResult( out IShellItem ppsi );
+		}
+
+		[ComImport, Guid( "43826D1E-E718-42EE-BC55-A1E261C37BFE" ),
+		 InterfaceType( ComInterfaceType.InterfaceIsIUnknown )]
+		private interface IShellItem
+		{
+			void BindToHandler( IntPtr pbc, ref Guid bhid, ref Guid riid, out IntPtr ppv );
+			void GetParent( out IShellItem ppsi );
+			void GetDisplayName( uint sigdnName, [MarshalAs( UnmanagedType.LPWStr )] out string ppszName );
 		}
 
 		private void LoadRobotFromFolder( string folderPath )
