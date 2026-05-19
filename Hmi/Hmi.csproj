@@ -83,6 +83,11 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
+    <Resource Include="..\Figures\robot-icon.png">
+      <Link>robot-icon.png</Link>
+    </Resource>
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\OccBridge\OccBridge.vcxproj">
       <Project>{FB92EB78-B432-4D16-8F16-8471A16F6212}</Project>
       <Name>OccBridge</Name>

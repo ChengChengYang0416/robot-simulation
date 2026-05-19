@@ -10,6 +10,7 @@ using System.Web.Script.Serialization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 
 namespace Hmi
@@ -23,6 +24,7 @@ namespace Hmi
 		public MainWindow()
 		{
 			InitializeComponent();
+			Icon = new BitmapImage( new Uri( "pack://application:,,,/robot-icon.png" ) );
 			_viewer = new OccViewerControl();
 			WinFormsHost.Child = _viewer;
 			_jointLabels = new[] { LblJ1, LblJ2, LblJ3, LblJ4, LblJ5, LblJ6 };
