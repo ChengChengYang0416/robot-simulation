@@ -23,6 +23,9 @@ namespace Hmi
 		private bool _robotLoaded;
 		private TextBlock[] _jointLabels;
 
+		private const string RegistryKey = @"SOFTWARE\RobotSimulation";
+		private const string RegistryValue = "LastModelFolder";
+
 		public MainWindow()
 		{
 			InitializeComponent();
@@ -31,6 +34,11 @@ namespace Hmi
 			WinFormsHost.Child = _viewer;
 			_jointLabels = new[] { LblJ1, LblJ2, LblJ3, LblJ4, LblJ5, LblJ6 };
 			SetStatus( "Ready" );
+
+			var lastFolder = GetLastModelFolder();
+			if( lastFolder != null && Directory.Exists( lastFolder ) ) {
+				Loaded += ( s, e ) => LoadRobotFromFolder( lastFolder );
+			}
 		}
 
 		private static readonly SolidColorBrush BrushGreen = new SolidColorBrush( Color.FromRgb( 0x4C, 0xAF, 0x50 ) );
@@ -157,12 +165,27 @@ namespace Hmi
 				} ) ) {
 					_robotLoaded = true;
 					ResetSliders();
+					SetLastModelFolder( folderPath );
 					SetStatus( $"Loaded: {Path.GetFileName( jsonPath )}, {parts.Length} part(s)." );
 				} else {
 					SetStatus( "Failed to load robot arm." );
 				}
 			} catch( Exception ex ) {
 				SetStatus( $"Load error: {ex.Message}" );
+			}
+		}
+
+		private static string GetLastModelFolder()
+		{
+			using( var key = Registry.CurrentUser.OpenSubKey( RegistryKey ) ) {
+				return key?.GetValue( RegistryValue ) as string;
+			}
+		}
+
+		private static void SetLastModelFolder( string path )
+		{
+			using( var key = Registry.CurrentUser.CreateSubKey( RegistryKey ) ) {
+				key.SetValue( RegistryValue, path );
 			}
 		}
 
