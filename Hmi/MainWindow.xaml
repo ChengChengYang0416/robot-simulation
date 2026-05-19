@@ -11,8 +11,9 @@
                 <MenuItem Header="Clear Scene" Click="BtnClear_Click"/>
             </MenuItem>
             <MenuItem Header="_View">
-                <MenuItem Header="ISO" Click="BtnIso_Click"/>
-                <MenuItem Header="Top" Click="BtnTop_Click"/>
+                <MenuItem Name="MenuIso" Header="ISO" IsCheckable="True" IsChecked="True" Click="BtnIso_Click"/>
+                <MenuItem Name="MenuTop" Header="Top" IsCheckable="True" Click="BtnTop_Click"/>
+                <Separator/>
                 <MenuItem Header="Fit All" Click="BtnFitAll_Click"/>
             </MenuItem>
         </Menu>

@@ -138,11 +138,15 @@ namespace Hmi
 		private void BtnIso_Click( object sender, RoutedEventArgs e )
 		{
 			_viewer.SetViewIso();
+			MenuIso.IsChecked = true;
+			MenuTop.IsChecked = false;
 		}
 
 		private void BtnTop_Click( object sender, RoutedEventArgs e )
 		{
 			_viewer.SetViewTop();
+			MenuIso.IsChecked = false;
+			MenuTop.IsChecked = true;
 		}
 
 		private void BtnFitAll_Click( object sender, RoutedEventArgs e )
