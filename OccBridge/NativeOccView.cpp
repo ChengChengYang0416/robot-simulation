@@ -288,6 +288,9 @@ void NativeOccView::endRobotArm( void )
 			gp_Pnt( 0, 0, 0 ), gp_Dir( 0, 0, 1 ), gp_Dir( 1, 0, 0 ) );
 		m_impl->tcpTrihedron = new AIS_Trihedron( axis );
 		m_impl->tcpTrihedron->SetSize( 80.0 );
+		m_impl->tcpTrihedron->SetDatumPartColor( Prs3d_DatumParts_XAxis, Quantity_Color( Quantity_NOC_BLUE ) );
+		m_impl->tcpTrihedron->SetDatumPartColor( Prs3d_DatumParts_YAxis, Quantity_Color( Quantity_NOC_GREEN ) );
+		m_impl->tcpTrihedron->SetDatumPartColor( Prs3d_DatumParts_ZAxis, Quantity_Color( Quantity_NOC_RED ) );
 		m_impl->context->Display( m_impl->tcpTrihedron, Standard_False );
 	}
 	updateRobotTransforms();
