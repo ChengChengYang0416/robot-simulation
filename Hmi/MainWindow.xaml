@@ -7,7 +7,7 @@
     <DockPanel>
         <Menu DockPanel.Dock="Top">
             <MenuItem Header="_File">
-                <MenuItem Header="Open Model Folder" Click="BtnOpenFolder_Click"/>
+                <MenuItem Header="Import Model" Click="BtnOpenFolder_Click"/>
                 <MenuItem Header="Clear Scene" Click="BtnClear_Click"/>
             </MenuItem>
             <MenuItem Header="_View">
