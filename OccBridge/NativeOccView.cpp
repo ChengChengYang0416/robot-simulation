@@ -7,7 +7,9 @@
 #include "RobotPartDef.h"
 #include <AIS_InteractiveContext.hxx>
 #include <AIS_Shape.hxx>
+#include <AIS_Trihedron.hxx>
 #include <Aspect_DisplayConnection.hxx>
+#include <Geom_Axis2Placement.hxx>
 #include <OpenGl_GraphicDriver.hxx>
 #include <STEPControl_Reader.hxx>
 #include <IFSelect_ReturnStatus.hxx>
@@ -46,6 +48,8 @@ struct NativeOccView::Impl
 	std::vector<TopoDS_Shape> originalShapes;
 	std::vector<std::pair<int, int>> axisToPartMap;
 	std::vector<double> jointAngles;
+
+	Handle( AIS_Trihedron ) tcpTrihedron;
 };
 
 static constexpr double kPi = 3.14159265358979323846;
@@ -277,8 +281,15 @@ bool NativeOccView::loadRobotPart( int index )
 }
 
 void NativeOccView::endRobotArm( void )
-// Computes cumulative DH transforms and fits the camera to the full scene
+// Computes cumulative DH transforms, creates the TCP trihedron, and fits the camera
 {
+	if( !m_impl->context.IsNull() && !m_impl->partDefs.empty() ) {
+		Handle( Geom_Axis2Placement ) axis = new Geom_Axis2Placement(
+			gp_Pnt( 0, 0, 0 ), gp_Dir( 0, 0, 1 ), gp_Dir( 1, 0, 0 ) );
+		m_impl->tcpTrihedron = new AIS_Trihedron( axis );
+		m_impl->tcpTrihedron->SetSize( 80.0 );
+		m_impl->context->Display( m_impl->tcpTrihedron, Standard_False );
+	}
 	updateRobotTransforms();
 	fitAll();
 }
@@ -346,6 +357,12 @@ void NativeOccView::updateRobotTransforms( void )
 		m_impl->shapes[ i ]->SetLocalTransformation( finalTrsf );
 	}
 
+	// Update TCP trihedron to the last DH frame
+	if( !m_impl->tcpTrihedron.IsNull() ) {
+		const int lastIdx = n - 1;
+		m_impl->tcpTrihedron->SetLocalTransformation( dhCumulative[ lastIdx ] );
+	}
+
 	m_impl->context->UpdateCurrentViewer();
 }
 
@@ -366,6 +383,10 @@ void NativeOccView::clearScene( void )
 	m_impl->partDefs.clear();
 	m_impl->axisToPartMap.clear();
 	m_impl->jointAngles.clear();
+	if( !m_impl->tcpTrihedron.IsNull() ) {
+		m_impl->context->Remove( m_impl->tcpTrihedron, Standard_False );
+		m_impl->tcpTrihedron.Nullify();
+	}
 	m_impl->context->UpdateCurrentViewer();
 	redraw();
 }

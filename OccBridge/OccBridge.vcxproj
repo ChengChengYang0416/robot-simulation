@@ -70,7 +70,7 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(OcctLibDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>TKernel.lib;TKMath.lib;TKService.lib;TKV3d.lib;TKOpenGl.lib;TKBRep.lib;TKTopAlgo.lib;TKDE.lib;TKDESTEP.lib;TKXSBase.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>TKernel.lib;TKMath.lib;TKG3d.lib;TKService.lib;TKV3d.lib;TKOpenGl.lib;TKBRep.lib;TKTopAlgo.lib;TKDE.lib;TKDESTEP.lib;TKXSBase.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -94,7 +94,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(OcctLibDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>TKernel.lib;TKMath.lib;TKService.lib;TKV3d.lib;TKOpenGl.lib;TKBRep.lib;TKTopAlgo.lib;TKDE.lib;TKDESTEP.lib;TKXSBase.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>TKernel.lib;TKMath.lib;TKG3d.lib;TKService.lib;TKV3d.lib;TKOpenGl.lib;TKBRep.lib;TKTopAlgo.lib;TKDE.lib;TKDESTEP.lib;TKXSBase.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -103,7 +103,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="OccViewerControl.cpp" />
-    <ClCompile Include="NativeOccView.cpp" />
+    <ClCompile Include="NativeOccView.cpp">
+      <CompileAsManaged>false</CompileAsManaged>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Reference Include="System" />
