@@ -105,6 +105,7 @@
     <ClCompile Include="OccViewerControl.cpp" />
     <ClCompile Include="NativeOccView.cpp">
       <CompileAsManaged>false</CompileAsManaged>
+      <ExceptionHandling>Sync</ExceptionHandling>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
