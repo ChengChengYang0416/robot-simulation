@@ -161,6 +161,7 @@ void NativeOccView::initialize( HWND hwnd )
 	}
 
 	m_impl->view->SetBackgroundColor( Quantity_NOC_GRAY30 );
+	m_impl->view->ZBufferTriedronSetup( Quantity_NOC_BLUE, Quantity_NOC_GREEN, Quantity_NOC_RED );
 	m_impl->view->TriedronDisplay( Aspect_TOTP_LEFT_LOWER, Quantity_NOC_WHITE, 0.08, V3d_ZBUFFER );
 	m_impl->view->MustBeResized();
 	m_impl->view->SetProj( V3d_XposYnegZpos );
