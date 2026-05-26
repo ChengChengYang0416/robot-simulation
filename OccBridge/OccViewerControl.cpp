@@ -11,6 +11,9 @@ namespace OccBridge {
 		: _native( new NativeOccView() ), _initialized( false )
 	// Creates the native viewer and sets default control appearance: dark background, fill parent, no double-buffering
 	{
+		// DoubleBuffered must be off: WinForms' double buffering would draw on top
+		// of OCCT's OpenGL output and erase it. ControlStyles::Selectable lets the
+		// control receive mouse-wheel events after a click-to-focus.
 		this->Dock = DockStyle::Fill;
 		this->DoubleBuffered = false;
 		this->SetStyle( ControlStyles::Selectable, true );
@@ -19,6 +22,10 @@ namespace OccBridge {
 	OccViewerControl::~OccViewerControl( void )
 	// Delegates to the finalizer to release unmanaged resources
 	{
+		// Standard managed/native cleanup pattern: the destructor (called by
+		// IDisposable::Dispose) invokes the !finalizer which actually frees the
+		// native pointer. This guarantees deterministic cleanup even if the GC
+		// finalizer thread runs the destructor first.
 		this->!OccViewerControl();
 	}
 
@@ -35,6 +42,9 @@ namespace OccBridge {
 	// Initializes OCCT the first time the window handle is ready; skips if already initialized
 	{
 		UserControl::OnHandleCreated( e );
+		// OCCT needs a valid HWND to bind its OpenGL surface, so initialization is
+		// deferred until WinForms creates the underlying window. The _initialized
+		// guard prevents re-initialization if the handle is recreated.
 		if( !_initialized && this->Handle != IntPtr::Zero ) {
 			_native->initialize( static_cast<HWND>( this->Handle.ToPointer() ) );
 			_initialized = true;
@@ -87,6 +97,9 @@ namespace OccBridge {
 			return false;
 		}
 
+		// Step 1: Marshal each managed RobotPartInfo into a native RobotPartDef.
+		// std::wstring assignment copies the marshalled buffer, so the managed
+		// String^ does not need to remain pinned afterwards.
 		std::vector<RobotPartDef> nativeParts( parts->Length );
 		for( int i = 0; i < parts->Length; i++ ) {
 			System::String^ fp = parts[ i ]->FilePath;
@@ -104,6 +117,9 @@ namespace OccBridge {
 			nativeParts[ i ].colorB = parts[ i ]->ColorB;
 		}
 
+		// Step 2: Flatten the [[axis, partIdx], ...] jagged array into a contiguous
+		// int[] (pairs) that crosses the managed/native boundary without nested
+		// allocations on the native side.
 		std::vector<int> nativeMap;
 		if( axisToPartMap != nullptr ) {
 			for( int i = 0; i < axisToPartMap->Length; i++ ) {
@@ -112,6 +128,9 @@ namespace OccBridge {
 			}
 		}
 
+		// Step 3: Three-phase native load: beginRobotArm stores the metadata,
+		// loadRobotPart streams in one STEP file per call (so the UI can report
+		// progress between calls), and endRobotArm finalizes transforms + TCP.
 		const int n = parts->Length;
 		if( !_native->beginRobotArm( nativeParts.data(), n,
 									 nativeMap.data(), static_cast<int>( nativeMap.size() ) ) ) {
@@ -122,6 +141,9 @@ namespace OccBridge {
 			if( progress != nullptr ) {
 				progress->Invoke( i + 1, n );
 			}
+			// loadRobotPart is [[nodiscard]]; the cast to void is intentional because
+			// failures push a null placeholder and we still want to continue with
+			// remaining parts rather than abort the whole load.
 			(void)_native->loadRobotPart( i );
 		}
 
@@ -165,6 +187,9 @@ namespace OccBridge {
 	// Ensures the control has keyboard focus, then forwards mouse-down to the native viewer
 	{
 		UserControl::OnMouseDown( e );
+		// WinForms does not auto-focus a control on mouse click unless it is the
+		// active tab stop. Forcing focus here makes the mouse wheel work right
+		// after the user clicks into the viewer.
 		if( !this->Focused ) {
 			this->Focus();
 		}

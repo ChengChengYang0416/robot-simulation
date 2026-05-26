@@ -58,11 +58,19 @@ static constexpr double kEpsilon = 1e-10;
 static constexpr double kZoomFactor = 1.15;
 
 static gp_Trsf makeDhTransform( double a, double alphaDeg, double d, double thetaDeg )
+// makes a homogeneous transformation from DH parameters,
+// applying rotations in the order Rx(alpha) * Tx(a) * Tz(d) * Rz(theta)
 {
 	const double alphaRad = alphaDeg * kDegToRad;
 	const double thetaRad = thetaDeg * kDegToRad;
 
-	// Standard DH: Rz(theta) * Tz(d) * Tx(a) * Rx(alpha)
+	// Build each elementary transform separately; skipping near-zero ones avoids
+	// accumulating floating-point noise in the final 4x4 matrix.
+	// Standard DH convention: T_i = Rz(theta) * Tz(d) * Tx(a) * Rx(alpha)
+	//   theta : joint rotation around previous Z axis
+	//   d     : link offset along previous Z axis
+	//   a     : link length along common normal (new X axis)
+	//   alpha : link twist around new X axis
 	gp_Trsf rz;
 	if( std::abs( thetaRad ) > kEpsilon ) {
 		rz.SetRotation( gp_Ax1( gp_Pnt( 0, 0, 0 ), gp_Dir( 0, 0, 1 ) ), thetaRad );
@@ -83,6 +91,8 @@ static gp_Trsf makeDhTransform( double a, double alphaDeg, double d, double thet
 		rx.SetRotation( gp_Ax1( gp_Pnt( 0, 0, 0 ), gp_Dir( 1, 0, 0 ) ), alphaRad );
 	}
 
+	// gp_Trsf::Multiply post-multiplies, so the call order below matches the
+	// mathematical left-to-right product Rz * Tz * Tx * Rx.
 	gp_Trsf result = rz;
 	result.Multiply( tz );
 	result.Multiply( tx );
@@ -92,7 +102,12 @@ static gp_Trsf makeDhTransform( double a, double alphaDeg, double d, double thet
 
 static gp_Trsf makeOffsetTransform( double tx, double ty, double tz,
 								   double rxDeg, double ryDeg, double rzDeg )
+// makes a homogeneous transformation from offset parameters,
+// applying rotations in the order Rx * Ry * Rz, then translation
 {
+	// Each CAD STEP file is authored in its own local frame which generally does
+	// not coincide with the DH joint frame. The offset parameters describe the
+	// fixed rigid transform that places the CAD geometry inside the joint frame.
 	gp_Trsf rotX;
 	if( std::abs( rxDeg ) > kEpsilon ) {
 		rotX.SetRotation( gp_Ax1( gp_Pnt( 0, 0, 0 ), gp_Dir( 1, 0, 0 ) ), rxDeg * kDegToRad );
@@ -122,6 +137,7 @@ static gp_Trsf makeOffsetTransform( double tx, double ty, double tz,
 }
 
 static std::string wideToUtf8( const wchar_t* wide )
+// Converts a wide-character string to UTF-8 using Windows API functions
 {
 	const int len = WideCharToMultiByte( CP_UTF8, 0, wide, -1, nullptr, 0, nullptr, nullptr );
 	std::string utf8( len - 1, '\0' );
@@ -146,6 +162,9 @@ void NativeOccView::initialize( HWND hwnd )
 {
 	m_impl->hwnd = hwnd;
 
+	// OCCT rendering stack (bottom to top):
+	//   DisplayConnection -> GraphicDriver -> Viewer -> View / InteractiveContext
+	// The Viewer owns lights and shared state; the Context manages AIS objects.
 	m_impl->displayConnection = new Aspect_DisplayConnection();
 	m_impl->graphicDriver = new OpenGl_GraphicDriver( m_impl->displayConnection );
 	m_impl->viewer = new V3d_Viewer( m_impl->graphicDriver );
@@ -154,6 +173,8 @@ void NativeOccView::initialize( HWND hwnd )
 	m_impl->context = new AIS_InteractiveContext( m_impl->viewer );
 	m_impl->view = m_impl->viewer->CreateView();
 
+	// Bind the OCCT view to the host HWND. WNT_Window must be mapped before the
+	// first redraw, otherwise OpenGL has no surface to draw onto.
 	Handle( WNT_Window ) window = new WNT_Window( reinterpret_cast<Aspect_Handle>( m_impl->hwnd ) );
 	m_impl->view->SetWindow( window );
 	if( !window->IsMapped() ) {
@@ -161,6 +182,8 @@ void NativeOccView::initialize( HWND hwnd )
 	}
 
 	m_impl->view->SetBackgroundColor( Quantity_NOC_GRAY30 );
+	// Corner trihedron: per-axis colors (X=blue, Y=green, Z=red) must be configured
+	// via ZBufferTriedronSetup before calling TriedronDisplay.
 	m_impl->view->ZBufferTriedronSetup( Quantity_NOC_BLUE, Quantity_NOC_GREEN, Quantity_NOC_RED );
 	m_impl->view->TriedronDisplay( Aspect_TOTP_LEFT_LOWER, Quantity_NOC_WHITE, 0.08, V3d_ZBUFFER );
 	m_impl->view->MustBeResized();
@@ -251,6 +274,8 @@ bool NativeOccView::loadRobotPart( int index )
 	const auto& part = m_impl->partDefs[ index ];
 	const std::string utf8Path = wideToUtf8( part.filePath.c_str() );
 
+	// On read failure, push empty placeholders so that vector indices remain in
+	// lock-step with partDefs. updateRobotTransforms() then skips null entries.
 	STEPControl_Reader reader;
 	const IFSelect_ReturnStatus status = reader.ReadFile( utf8Path.c_str() );
 	if( status != IFSelect_RetDone ) {
@@ -269,6 +294,9 @@ bool NativeOccView::loadRobotPart( int index )
 	TopoDS_Shape shape = reader.OneShape();
 	m_impl->originalShapes.push_back( shape );
 
+	// Display as shaded (mode 1). All Display/SetColor calls pass Standard_False
+	// so the viewer is not redrawn after each part; endRobotArm() does one final
+	// UpdateCurrentViewer for the whole batch.
 	Handle( AIS_Shape ) aisShape = new AIS_Shape( shape );
 	const Quantity_Color qColor(
 		part.colorR / 255.0,
@@ -284,6 +312,8 @@ bool NativeOccView::loadRobotPart( int index )
 void NativeOccView::endRobotArm( void )
 // Computes cumulative DH transforms, creates the TCP trihedron, and fits the camera
 {
+	// Build a TCP (Tool Center Point) trihedron that will be re-positioned by
+	// updateRobotTransforms() to follow the last DH frame in real time.
 	if( !m_impl->context.IsNull() && !m_impl->partDefs.empty() ) {
 		Handle( Geom_Axis2Placement ) axis = new Geom_Axis2Placement(
 			gp_Pnt( 0, 0, 0 ), gp_Dir( 0, 0, 1 ), gp_Dir( 1, 0, 0 ) );
@@ -319,7 +349,9 @@ void NativeOccView::updateRobotTransforms( void )
 
 	const int n = static_cast<int>( m_impl->partDefs.size() );
 
-	// Build joint angle delta per part
+	// Step 1: Spread joint angles (axisToPartMap maps axis 1..6 -> part index)
+	//         onto the corresponding part's theta delta. Parts that are not
+	//         driven by a joint keep a zero delta.
 	std::vector<double> partJointDelta( n, 0.0 );
 	for( const auto& mapping : m_impl->axisToPartMap ) {
 		const int axisIdx = mapping.first;
@@ -329,7 +361,9 @@ void NativeOccView::updateRobotTransforms( void )
 		}
 	}
 
-	// Compute cumulative DH transforms
+	// Step 2: Walk the kinematic tree in array order (parents must precede children)
+	//         and accumulate dhCumulative[i] = dhCumulative[parent] * dhLocal[i].
+	//         Root parts (parentIdx < 0) use dhLocal directly as the world frame.
 	std::vector<gp_Trsf> dhCumulative( n );
 	for( int i = 0; i < n; ++i ) {
 		const double theta = m_impl->partDefs[ i ].dhTheta + partJointDelta[ i ];
@@ -346,6 +380,9 @@ void NativeOccView::updateRobotTransforms( void )
 		}
 	}
 
+	// Step 3: Final transform = dhCumulative * offset.
+	//         The offset brings the CAD shape's authored frame into the DH joint
+	//         frame, then dhCumulative places the joint frame in world space.
 	for( int i = 0; i < n; ++i ) {
 		if( m_impl->shapes[ i ].IsNull() ) {
 			continue;
@@ -358,10 +395,12 @@ void NativeOccView::updateRobotTransforms( void )
 		gp_Trsf finalTrsf = dhCumulative[ i ];
 		finalTrsf.Multiply( offsetTrsf );
 
+		// SetLocalTransformation updates in-place without re-tessellating geometry,
+		// so it is cheap enough to call on every slider change.
 		m_impl->shapes[ i ]->SetLocalTransformation( finalTrsf );
 	}
 
-	// Update TCP trihedron to the last DH frame
+	// Step 4: Place TCP trihedron at the last DH frame (assumed end-effector).
 	if( !m_impl->tcpTrihedron.IsNull() ) {
 		const int lastIdx = n - 1;
 		m_impl->tcpTrihedron->SetLocalTransformation( dhCumulative[ lastIdx ] );
