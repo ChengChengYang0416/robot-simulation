@@ -162,45 +162,47 @@ struct RobotPartDef {
 
 ```mermaid
 sequenceDiagram
-    participant U as User
     participant W as MainWindow
     participant V as OccViewerControl
     participant N as NativeOccView
 
     W->>W: ctor: read HKCU LastModelFolder
-    W->>V: new OccViewerControl()
-    V->>N: new NativeOccView()
+    W->>V: new OccViewerControl
+    V->>N: new NativeOccView
     Note over W: WPF Loaded event
-    W->>W: LoadRobotFromFolder(lastFolder)
-    W->>V: LoadRobotArm(parts, map, progress)
-    V->>N: beginRobotArm(...)
+    W->>W: LoadRobotFromFolder
+    W->>V: LoadRobotArm parts, map, progress
+    V->>N: beginRobotArm
     loop for each part i
-        V->>W: progress(i+1, n)  →  SetStatus("Loading i/n…", orange)
-        V->>N: loadRobotPart(i)
+        V->>W: progress i+1 of n
+        Note over W: SetStatus Loading i/n orange
+        V->>N: loadRobotPart i
     end
-    V->>N: endRobotArm()  // creates TCP trihedron, fitAll
-    W->>W: SetStatus("Loaded: …", green); SetLastModelFolder()
+    V->>N: endRobotArm
+    Note over N: creates TCP trihedron, fitAll
+    W->>W: SetStatus Loaded green
+    W->>W: SetLastModelFolder
 ```
 
 ### 5.2 Joint slider movement
 
 ```mermaid
 sequenceDiagram
-    participant S as Slider (J3)
+    participant S as Slider J3
     participant W as MainWindow
     participant V as OccViewerControl
     participant N as NativeOccView
 
-    S->>W: ValueChanged (angle, Tag=2)
-    W->>V: SetJointAngle(2, angle)
-    V->>N: setJointAngle(2, angle)
+    S->>W: ValueChanged angle Tag=2
+    W->>V: SetJointAngle 2 angle
+    V->>N: setJointAngle 2 angle
     N->>N: jointAngles[2] = angle
-    N->>N: updateRobotTransforms()
-    N->>N:   Step 1: distribute deltas via axisToPartMap
-    N->>N:   Step 2: cumulative DH (parent→child)
-    N->>N:   Step 3: shape.SetLocalTransformation(dhCumulative * offset)
-    N->>N:   Step 4: tcpTrihedron tracks last frame
-    N->>N: context->UpdateCurrentViewer()
+    N->>N: updateRobotTransforms
+    Note over N: Step 1 distribute deltas via axisToPartMap
+    Note over N: Step 2 cumulative DH parent to child
+    Note over N: Step 3 SetLocalTransformation dhCumulative x offset
+    Note over N: Step 4 tcpTrihedron tracks last frame
+    N->>N: UpdateCurrentViewer
 ```
 
 ---
