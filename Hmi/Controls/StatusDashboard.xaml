@@ -1,0 +1,90 @@
+<UserControl x:Class="Hmi.Controls.StatusDashboard"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <StackPanel>
+        <GroupBox Header="Joint Values" Margin="0,0,0,12">
+            <Grid Margin="10,8">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="40"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="40"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="J1" VerticalAlignment="Center"/>
+                <TextBlock Grid.Row="0" Grid.Column="1" Name="TxtJ1" Text="0.00" HorizontalAlignment="Right" FontFamily="Consolas"/>
+                <TextBlock Grid.Row="0" Grid.Column="2" Text="°" Margin="4,0,0,0"/>
+
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="J2" VerticalAlignment="Center"/>
+                <TextBlock Grid.Row="1" Grid.Column="1" Name="TxtJ2" Text="0.00" HorizontalAlignment="Right" FontFamily="Consolas"/>
+                <TextBlock Grid.Row="1" Grid.Column="2" Text="°" Margin="4,0,0,0"/>
+
+                <TextBlock Grid.Row="2" Grid.Column="0" Text="J3" VerticalAlignment="Center"/>
+                <TextBlock Grid.Row="2" Grid.Column="1" Name="TxtJ3" Text="0.00" HorizontalAlignment="Right" FontFamily="Consolas"/>
+                <TextBlock Grid.Row="2" Grid.Column="2" Text="°" Margin="4,0,0,0"/>
+
+                <TextBlock Grid.Row="3" Grid.Column="0" Text="J4" VerticalAlignment="Center"/>
+                <TextBlock Grid.Row="3" Grid.Column="1" Name="TxtJ4" Text="0.00" HorizontalAlignment="Right" FontFamily="Consolas"/>
+                <TextBlock Grid.Row="3" Grid.Column="2" Text="°" Margin="4,0,0,0"/>
+
+                <TextBlock Grid.Row="4" Grid.Column="0" Text="J5" VerticalAlignment="Center"/>
+                <TextBlock Grid.Row="4" Grid.Column="1" Name="TxtJ5" Text="0.00" HorizontalAlignment="Right" FontFamily="Consolas"/>
+                <TextBlock Grid.Row="4" Grid.Column="2" Text="°" Margin="4,0,0,0"/>
+
+                <TextBlock Grid.Row="5" Grid.Column="0" Text="J6" VerticalAlignment="Center"/>
+                <TextBlock Grid.Row="5" Grid.Column="1" Name="TxtJ6" Text="0.00" HorizontalAlignment="Right" FontFamily="Consolas"/>
+                <TextBlock Grid.Row="5" Grid.Column="2" Text="°" Margin="4,0,0,0"/>
+            </Grid>
+        </GroupBox>
+
+        <GroupBox Header="TCP Pose" Margin="0,0,0,12">
+            <Grid Margin="10,8">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="6"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="40"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="40"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="X" VerticalAlignment="Center"/>
+                <TextBlock Grid.Row="0" Grid.Column="1" Name="TxtX" Text="0.00" HorizontalAlignment="Right" FontFamily="Consolas"/>
+                <TextBlock Grid.Row="0" Grid.Column="2" Text="mm" Margin="4,0,0,0"/>
+
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="Y" VerticalAlignment="Center"/>
+                <TextBlock Grid.Row="1" Grid.Column="1" Name="TxtY" Text="0.00" HorizontalAlignment="Right" FontFamily="Consolas"/>
+                <TextBlock Grid.Row="1" Grid.Column="2" Text="mm" Margin="4,0,0,0"/>
+
+                <TextBlock Grid.Row="2" Grid.Column="0" Text="Z" VerticalAlignment="Center"/>
+                <TextBlock Grid.Row="2" Grid.Column="1" Name="TxtZ" Text="0.00" HorizontalAlignment="Right" FontFamily="Consolas"/>
+                <TextBlock Grid.Row="2" Grid.Column="2" Text="mm" Margin="4,0,0,0"/>
+
+                <TextBlock Grid.Row="4" Grid.Column="0" Text="Rx" VerticalAlignment="Center"/>
+                <TextBlock Grid.Row="4" Grid.Column="1" Name="TxtRx" Text="0.00" HorizontalAlignment="Right" FontFamily="Consolas"/>
+                <TextBlock Grid.Row="4" Grid.Column="2" Text="°" Margin="4,0,0,0"/>
+
+                <TextBlock Grid.Row="5" Grid.Column="0" Text="Ry" VerticalAlignment="Center"/>
+                <TextBlock Grid.Row="5" Grid.Column="1" Name="TxtRy" Text="0.00" HorizontalAlignment="Right" FontFamily="Consolas"/>
+                <TextBlock Grid.Row="5" Grid.Column="2" Text="°" Margin="4,0,0,0"/>
+
+                <TextBlock Grid.Row="6" Grid.Column="0" Text="Rz" VerticalAlignment="Center"/>
+                <TextBlock Grid.Row="6" Grid.Column="1" Name="TxtRz" Text="0.00" HorizontalAlignment="Right" FontFamily="Consolas"/>
+                <TextBlock Grid.Row="6" Grid.Column="2" Text="°" Margin="4,0,0,0"/>
+            </Grid>
+        </GroupBox>
+    </StackPanel>
+</UserControl>
