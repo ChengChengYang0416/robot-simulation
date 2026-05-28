@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:wf="clr-namespace:System.Windows.Forms;assembly=System.Windows.Forms"
         xmlns:wfi="clr-namespace:System.Windows.Forms.Integration;assembly=WindowsFormsIntegration"
+        xmlns:ctl="clr-namespace:Hmi.Controls"
         Title="RobotSimulation" Height="700" Width="1100" MinHeight="700" MinWidth="1100">
     <DockPanel>
         <Menu DockPanel.Dock="Top">
@@ -73,6 +74,7 @@
                         <TextBlock Name="LblJ6" Grid.Row="5" Grid.Column="2" VerticalAlignment="Center" Text="0°"/>
                     </Grid>
                 </GroupBox>
+                    <ctl:StatusDashboard x:Name="Dashboard"/>
                 </StackPanel>
             </DockPanel>
 

@@ -165,6 +165,7 @@ namespace Hmi
 				} ) ) {
 					_robotLoaded = true;
 					ResetSliders();
+					UpdateDashboard();
 					SetLastModelFolder( folderPath );
 					SetStatus( $"Loaded: {Path.GetFileName( jsonPath )}, {parts.Length} part(s)." );
 				} else {
@@ -206,6 +207,7 @@ namespace Hmi
 			_viewer.ClearScene();
 			_robotLoaded = false;
 			ResetSliders();
+			Dashboard.Reset();
 			SetStatus( "Scene cleared." );
 		}
 
@@ -243,6 +245,8 @@ namespace Hmi
 			if( _jointLabels != null && axisIndex >= 0 && axisIndex < _jointLabels.Length ) {
 				_jointLabels[ axisIndex ].Text = $"{(int)angle}°";
 			}
+
+			UpdateDashboard();
 		}
 
 		private void ResetSliders()
@@ -260,6 +264,18 @@ namespace Hmi
 					}
 				}
 			}
+		}
+
+		private void UpdateDashboard()
+		{
+			// Pushes the latest joint angles (from sliders) to the status dashboard.
+			// TCP pose update is wired in Step B after exposing GetTcpPose from the bridge.
+			var sliders = new[] { SliderJ1, SliderJ2, SliderJ3, SliderJ4, SliderJ5, SliderJ6 };
+			var angles = new double[ sliders.Length ];
+			for( int i = 0; i < sliders.Length; i++ ) {
+				angles[ i ] = sliders[ i ] != null ? sliders[ i ].Value : 0.0;
+			}
+			Dashboard.UpdateJoints( angles );
 		}
 
 		private void ApplyAxisLimits( double[][] limits )
