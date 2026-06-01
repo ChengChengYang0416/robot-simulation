@@ -8,7 +8,7 @@
 namespace OccBridge {
 
 	OccViewerControl::OccViewerControl( void )
-		: _native( new NativeOccView() ), _initialized( false )
+		: m_pNative( new NativeOccView() ), _initialized( false )
 	// Creates the native viewer and sets default control appearance: dark background, fill parent, no double-buffering
 	{
 		// DoubleBuffered must be off: WinForms' double buffering would draw on top
@@ -32,9 +32,9 @@ namespace OccBridge {
 	OccViewerControl::!OccViewerControl( void )
 	// Deletes the native viewer object to prevent memory leaks
 	{
-		if( _native != nullptr ) {
-			delete _native;
-			_native = nullptr;
+		if( m_pNative != nullptr ) {
+			delete m_pNative;
+			m_pNative = nullptr;
 		}
 	}
 
@@ -46,7 +46,7 @@ namespace OccBridge {
 		// deferred until WinForms creates the underlying window. The _initialized
 		// guard prevents re-initialization if the handle is recreated.
 		if( !_initialized && this->Handle != IntPtr::Zero ) {
-			_native->initialize( static_cast<HWND>( this->Handle.ToPointer() ) );
+			m_pNative->initialize( static_cast<HWND>( this->Handle.ToPointer() ) );
 			_initialized = true;
 		}
 	}
@@ -56,7 +56,7 @@ namespace OccBridge {
 	{
 		UserControl::OnResize( e );
 		if( _initialized ) {
-			_native->resize( this->Width, this->Height );
+			m_pNative->resize( this->Width, this->Height );
 		}
 	}
 
@@ -65,7 +65,7 @@ namespace OccBridge {
 	{
 		UserControl::OnPaint( e );
 		if( _initialized ) {
-			_native->redraw();
+			m_pNative->redraw();
 		}
 	}
 
@@ -77,14 +77,14 @@ namespace OccBridge {
 		}
 
 		std::wstring nativePath = msclr::interop::marshal_as<std::wstring>( path );
-		return _native->loadStep( nativePath.c_str(), append );
+		return m_pNative->loadStep( nativePath.c_str(), append );
 	}
 
 	void OccViewerControl::ClearScene( void )
 	// Forwards to the native clear, releasing all AIS objects and axis state
 	{
 		if( _initialized ) {
-			_native->clearScene();
+			m_pNative->clearScene();
 		}
 	}
 
@@ -132,7 +132,7 @@ namespace OccBridge {
 		// loadRobotPart streams in one STEP file per call (so the UI can report
 		// progress between calls), and endRobotArm finalizes transforms + TCP.
 		const int n = parts->Length;
-		if( !_native->beginRobotArm( nativeParts.data(), n,
+		if( !m_pNative->beginRobotArm( nativeParts.data(), n,
 									 nativeMap.data(), static_cast<int>( nativeMap.size() ) ) ) {
 			return false;
 		}
@@ -144,10 +144,10 @@ namespace OccBridge {
 			// loadRobotPart is [[nodiscard]]; the cast to void is intentional because
 			// failures push a null placeholder and we still want to continue with
 			// remaining parts rather than abort the whole load.
-			(void)_native->loadRobotPart( i );
+			(void)m_pNative->loadRobotPart( i );
 		}
 
-		_native->endRobotArm();
+		m_pNative->endRobotArm();
 		return true;
 	}
 
@@ -155,7 +155,7 @@ namespace OccBridge {
 	// Forwards the joint angle to the native viewer
 	{
 		if( _initialized ) {
-			_native->setJointAngle( axisIndex, angleDeg );
+			m_pNative->setJointAngle( axisIndex, angleDeg );
 		}
 	}
 
@@ -166,7 +166,7 @@ namespace OccBridge {
 			return nullptr;
 		}
 		double buf[ 6 ] = { 0, 0, 0, 0, 0, 0 };
-		if( !_native->getTcpPose( buf ) ) {
+		if( !m_pNative->getTcpPose( buf ) ) {
 			return nullptr;
 		}
 		auto result = gcnew cli::array<double>( 6 );
@@ -180,7 +180,7 @@ namespace OccBridge {
 	// Forwards fit-all to the native viewer
 	{
 		if( _initialized ) {
-			_native->fitAll();
+			m_pNative->fitAll();
 		}
 	}
 
@@ -188,7 +188,7 @@ namespace OccBridge {
 	// Forwards isometric view switch to the native viewer
 	{
 		if( _initialized ) {
-			_native->setViewIso();
+			m_pNative->setViewIso();
 		}
 	}
 
@@ -196,7 +196,7 @@ namespace OccBridge {
 	// Forwards top view switch to the native viewer
 	{
 		if( _initialized ) {
-			_native->setViewTop();
+			m_pNative->setViewTop();
 		}
 	}
 
@@ -211,7 +211,7 @@ namespace OccBridge {
 			this->Focus();
 		}
 		if( _initialized ) {
-			_native->onMouseDown( e->X, e->Y, static_cast<int>( e->Button ) );
+			m_pNative->onMouseDown( e->X, e->Y, static_cast<int>( e->Button ) );
 		}
 	}
 
@@ -220,7 +220,7 @@ namespace OccBridge {
 	{
 		UserControl::OnMouseMove( e );
 		if( _initialized ) {
-			_native->onMouseMove( e->X, e->Y, static_cast<int>( e->Button ) );
+			m_pNative->onMouseMove( e->X, e->Y, static_cast<int>( e->Button ) );
 		}
 	}
 
@@ -229,7 +229,7 @@ namespace OccBridge {
 	{
 		UserControl::OnMouseUp( e );
 		if( _initialized ) {
-			_native->onMouseUp( );
+			m_pNative->onMouseUp( );
 		}
 	}
 
@@ -238,7 +238,7 @@ namespace OccBridge {
 	{
 		UserControl::OnMouseWheel( e );
 		if( _initialized ) {
-			_native->onMouseWheel( e->Delta );
+			m_pNative->onMouseWheel( e->Delta );
 		}
 	}
 

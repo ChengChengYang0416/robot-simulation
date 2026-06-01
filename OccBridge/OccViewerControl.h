@@ -79,7 +79,7 @@ namespace OccBridge {
 		// Forwards mouse-wheel events to the native viewer
 
 	private:
-		NativeOccView* _native;
+		NativeOccView* m_pNative;
 		// Pointer to the native OCCT viewer instance; manages the 3D scene and interactions
 
 		bool _initialized;
