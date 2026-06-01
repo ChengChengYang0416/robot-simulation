@@ -8,7 +8,7 @@
 namespace OccBridge {
 
 	OccViewerControl::OccViewerControl( void )
-		: m_pNative( new NativeOccView() ), _initialized( false )
+		: m_pNative( new NativeOccView() ), m_bInitialized( false )
 	// Creates the native viewer and sets default control appearance: dark background, fill parent, no double-buffering
 	{
 		// DoubleBuffered must be off: WinForms' double buffering would draw on top
@@ -43,11 +43,11 @@ namespace OccBridge {
 	{
 		UserControl::OnHandleCreated( e );
 		// OCCT needs a valid HWND to bind its OpenGL surface, so initialization is
-		// deferred until WinForms creates the underlying window. The _initialized
+		// deferred until WinForms creates the underlying window. The m_bInitialized
 		// guard prevents re-initialization if the handle is recreated.
-		if( !_initialized && this->Handle != IntPtr::Zero ) {
+		if( !m_bInitialized && this->Handle != IntPtr::Zero ) {
 			m_pNative->initialize( static_cast<HWND>( this->Handle.ToPointer() ) );
-			_initialized = true;
+			m_bInitialized = true;
 		}
 	}
 
@@ -55,7 +55,7 @@ namespace OccBridge {
 	// Notifies OCCT to adjust the viewport when the window is resized
 	{
 		UserControl::OnResize( e );
-		if( _initialized ) {
+		if( m_bInitialized ) {
 			m_pNative->resize( this->Width, this->Height );
 		}
 	}
@@ -64,7 +64,7 @@ namespace OccBridge {
 	// Delegates WinForms repaint to OCCT redraw to prevent blank flicker
 	{
 		UserControl::OnPaint( e );
-		if( _initialized ) {
+		if( m_bInitialized ) {
 			m_pNative->redraw();
 		}
 	}
@@ -72,7 +72,7 @@ namespace OccBridge {
 	bool OccViewerControl::LoadStep( String^ path, bool append )
 	// Marshals the managed string to a native wide string and forwards to the native loader
 	{
-		if( !_initialized ) {
+		if( !m_bInitialized ) {
 			return false;
 		}
 
@@ -83,7 +83,7 @@ namespace OccBridge {
 	void OccViewerControl::ClearScene( void )
 	// Forwards to the native clear, releasing all AIS objects and axis state
 	{
-		if( _initialized ) {
+		if( m_bInitialized ) {
 			m_pNative->clearScene();
 		}
 	}
@@ -93,7 +93,7 @@ namespace OccBridge {
 								 Action<int, int>^ progress )
 	// Converts the managed arrays to native structs and forwards to the native loader
 	{
-		if( !_initialized ) {
+		if( !m_bInitialized ) {
 			return false;
 		}
 
@@ -154,7 +154,7 @@ namespace OccBridge {
 	void OccViewerControl::SetJointAngle( int axisIndex, double angleDeg )
 	// Forwards the joint angle to the native viewer
 	{
-		if( _initialized ) {
+		if( m_bInitialized ) {
 			m_pNative->setJointAngle( axisIndex, angleDeg );
 		}
 	}
@@ -162,7 +162,7 @@ namespace OccBridge {
 	cli::array<double>^ OccViewerControl::GetTcpPose( void )
 	// Retrieves the TCP pose from the native viewer and marshals it into a managed array
 	{
-		if( !_initialized ) {
+		if( !m_bInitialized ) {
 			return nullptr;
 		}
 		double buf[ 6 ] = { 0, 0, 0, 0, 0, 0 };
@@ -179,7 +179,7 @@ namespace OccBridge {
 	void OccViewerControl::FitAllView( void )
 	// Forwards fit-all to the native viewer
 	{
-		if( _initialized ) {
+		if( m_bInitialized ) {
 			m_pNative->fitAll();
 		}
 	}
@@ -187,7 +187,7 @@ namespace OccBridge {
 	void OccViewerControl::SetViewIso( void )
 	// Forwards isometric view switch to the native viewer
 	{
-		if( _initialized ) {
+		if( m_bInitialized ) {
 			m_pNative->setViewIso();
 		}
 	}
@@ -195,7 +195,7 @@ namespace OccBridge {
 	void OccViewerControl::SetViewTop( void )
 	// Forwards top view switch to the native viewer
 	{
-		if( _initialized ) {
+		if( m_bInitialized ) {
 			m_pNative->setViewTop();
 		}
 	}
@@ -210,7 +210,7 @@ namespace OccBridge {
 		if( !this->Focused ) {
 			this->Focus();
 		}
-		if( _initialized ) {
+		if( m_bInitialized ) {
 			m_pNative->onMouseDown( e->X, e->Y, static_cast<int>( e->Button ) );
 		}
 	}
@@ -219,7 +219,7 @@ namespace OccBridge {
 	// Forwards mouse-move to the native viewer for rotation, pan, or highlight update
 	{
 		UserControl::OnMouseMove( e );
-		if( _initialized ) {
+		if( m_bInitialized ) {
 			m_pNative->onMouseMove( e->X, e->Y, static_cast<int>( e->Button ) );
 		}
 	}
@@ -228,7 +228,7 @@ namespace OccBridge {
 	// Forwards mouse-up to the native viewer to stop rotation and pan
 	{
 		UserControl::OnMouseUp( e );
-		if( _initialized ) {
+		if( m_bInitialized ) {
 			m_pNative->onMouseUp( );
 		}
 	}
@@ -237,7 +237,7 @@ namespace OccBridge {
 	// Forwards mouse-wheel to the native viewer to zoom the 3D scene
 	{
 		UserControl::OnMouseWheel( e );
-		if( _initialized ) {
+		if( m_bInitialized ) {
 			m_pNative->onMouseWheel( e->Delta );
 		}
 	}

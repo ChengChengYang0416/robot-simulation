@@ -82,7 +82,7 @@ namespace OccBridge {
 		NativeOccView* m_pNative;
 		// Pointer to the native OCCT viewer instance; manages the 3D scene and interactions
 
-		bool _initialized;
+		bool m_bInitialized;
 		// Tracks whether the OCCT viewer has been initialized to prevent invalid calls
 	};
 
