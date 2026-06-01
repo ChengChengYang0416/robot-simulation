@@ -159,6 +159,23 @@ namespace OccBridge {
 		}
 	}
 
+	cli::array<double>^ OccViewerControl::GetTcpPose( void )
+	// Retrieves the TCP pose from the native viewer and marshals it into a managed array
+	{
+		if( !_initialized ) {
+			return nullptr;
+		}
+		double buf[ 6 ] = { 0, 0, 0, 0, 0, 0 };
+		if( !_native->getTcpPose( buf ) ) {
+			return nullptr;
+		}
+		auto result = gcnew cli::array<double>( 6 );
+		for( int i = 0; i < 6; ++i ) {
+			result[ i ] = buf[ i ];
+		}
+		return result;
+	}
+
 	void OccViewerControl::FitAllView( void )
 	// Forwards fit-all to the native viewer
 	{

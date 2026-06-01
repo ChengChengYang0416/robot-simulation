@@ -40,6 +40,10 @@ namespace OccBridge {
 		void SetJointAngle( int axisIndex, double angleDeg );
 		// Sets the joint angle (degrees) for the given 0-based axis
 
+		cli::array<double>^ GetTcpPose( void );
+		// Returns the TCP pose as [x, y, z, rx, ry, rz] in mm and degrees,
+		// or nullptr if no robot is currently loaded
+
 		void ClearScene( void );
 		// Removes all objects from the 3D scene
 

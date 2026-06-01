@@ -38,6 +38,10 @@ public:
 	void setJointAngle( int axisIndex, double angleDeg );
 	// Sets the joint angle (degrees) for the given 0-based axis and updates the scene
 
+	[[nodiscard]] bool getTcpPose( double out[6] ) const;
+	// Fills out with TCP pose [x, y, z, rx, ry, rz] in mm and degrees (ZYX intrinsic Euler);
+	// returns false if no robot is currently loaded
+
 	void clearScene( void );
 	// Removes all objects from the scene and resets robot arm state
 

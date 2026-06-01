@@ -268,14 +268,18 @@ namespace Hmi
 
 		private void UpdateDashboard()
 		{
-			// Pushes the latest joint angles (from sliders) to the status dashboard.
-			// TCP pose update is wired in Step B after exposing GetTcpPose from the bridge.
+			// Pushes the latest joint angles (from sliders) and TCP pose (from native) to the dashboard.
 			var sliders = new[] { SliderJ1, SliderJ2, SliderJ3, SliderJ4, SliderJ5, SliderJ6 };
 			var angles = new double[ sliders.Length ];
 			for( int i = 0; i < sliders.Length; i++ ) {
 				angles[ i ] = sliders[ i ] != null ? sliders[ i ].Value : 0.0;
 			}
 			Dashboard.UpdateJoints( angles );
+
+			var pose = _viewer.GetTcpPose();
+			if( pose != null ) {
+				Dashboard.UpdateTcpPose( pose );
+			}
 		}
 
 		private void ApplyAxisLimits( double[][] limits )

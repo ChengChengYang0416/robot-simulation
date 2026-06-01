@@ -50,6 +50,8 @@ struct NativeOccView::Impl
 	std::vector<double> jointAngles;
 
 	Handle( AIS_Trihedron ) tcpTrihedron;
+	gp_Trsf tcpTrsf;
+	bool hasTcp = false;
 };
 
 static constexpr double kPi = 3.14159265358979323846;
@@ -404,6 +406,8 @@ void NativeOccView::updateRobotTransforms( void )
 	if( !m_impl->tcpTrihedron.IsNull() ) {
 		const int lastIdx = n - 1;
 		m_impl->tcpTrihedron->SetLocalTransformation( dhCumulative[ lastIdx ] );
+		m_impl->tcpTrsf = dhCumulative[ lastIdx ];
+		m_impl->hasTcp = true;
 	}
 
 	m_impl->context->UpdateCurrentViewer();
@@ -430,6 +434,7 @@ void NativeOccView::clearScene( void )
 		m_impl->context->Remove( m_impl->tcpTrihedron, Standard_False );
 		m_impl->tcpTrihedron.Nullify();
 	}
+	m_impl->hasTcp = false;
 	m_impl->context->UpdateCurrentViewer();
 	redraw();
 }
@@ -442,6 +447,50 @@ void NativeOccView::fitAll( void )
 		m_impl->view->ZFitAll();
 		m_impl->view->Redraw();
 	}
+}
+
+bool NativeOccView::getTcpPose( double out[6] ) const
+// Returns the cached TCP pose as [x, y, z, rx, ry, rz] in mm and degrees.
+// Euler convention: R = Rz(rz) * Ry(ry) * Rx(rx) (ZYX intrinsic == XYZ extrinsic),
+// matching the rotation order used by makeOffsetTransform for consistency.
+// Returns false if no robot is loaded.
+{
+	if( out == nullptr || !m_impl->hasTcp ) {
+		return false;
+	}
+
+	const gp_Trsf& t = m_impl->tcpTrsf;
+
+	// Translation: gp_Trsf::Value uses 1-based indices; column 4 is translation.
+	out[ 0 ] = t.Value( 1, 4 );
+	out[ 1 ] = t.Value( 2, 4 );
+	out[ 2 ] = t.Value( 3, 4 );
+
+	// Rotation matrix elements (row, col), 1-based.
+	const double r00 = t.Value( 1, 1 );
+	const double r10 = t.Value( 2, 1 );
+	const double r20 = t.Value( 3, 1 );
+	const double r21 = t.Value( 3, 2 );
+	const double r22 = t.Value( 3, 3 );
+
+	const double sy = std::sqrt( r00 * r00 + r10 * r10 );
+	double rx, ry, rz;
+	if( sy > kEpsilon ) {
+		rx = std::atan2( r21, r22 );
+		ry = std::atan2( -r20, sy );
+		rz = std::atan2( r10, r00 );
+	} else {
+		// Gimbal lock: ry is +/- 90 deg, rz is set to 0 by convention.
+		rx = std::atan2( -t.Value( 2, 3 ), t.Value( 2, 2 ) );
+		ry = std::atan2( -r20, sy );
+		rz = 0.0;
+	}
+
+	const double kRadToDeg = 180.0 / kPi;
+	out[ 3 ] = rx * kRadToDeg;
+	out[ 4 ] = ry * kRadToDeg;
+	out[ 5 ] = rz * kRadToDeg;
+	return true;
 }
 
 void NativeOccView::setViewIso( void )
