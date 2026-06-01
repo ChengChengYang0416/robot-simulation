@@ -12,7 +12,7 @@ namespace Hmi.Controls
 		{
 			InitializeComponent();
 			_jointTexts = new[] { TxtJ1, TxtJ2, TxtJ3, TxtJ4, TxtJ5, TxtJ6 };
-			_poseTexts = new[] { TxtX, TxtY, TxtZ, TxtRx, TxtRy, TxtRz };
+			_poseTexts = new[] { TxtX, TxtY, TxtZ, TxtA, TxtB, TxtC };
 		}
 
 		public void UpdateJoints( double[] anglesDeg )

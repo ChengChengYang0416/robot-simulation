@@ -73,16 +73,16 @@
                 <TextBlock Grid.Row="2" Grid.Column="1" Name="TxtZ" Text="0.00" HorizontalAlignment="Right" FontFamily="Consolas"/>
                 <TextBlock Grid.Row="2" Grid.Column="2" Text="mm" Margin="4,0,0,0"/>
 
-                <TextBlock Grid.Row="4" Grid.Column="0" Text="Rx" VerticalAlignment="Center"/>
-                <TextBlock Grid.Row="4" Grid.Column="1" Name="TxtRx" Text="0.00" HorizontalAlignment="Right" FontFamily="Consolas"/>
+                <TextBlock Grid.Row="4" Grid.Column="0" Text="A" VerticalAlignment="Center"/>
+                <TextBlock Grid.Row="4" Grid.Column="1" Name="TxtA" Text="0.00" HorizontalAlignment="Right" FontFamily="Consolas"/>
                 <TextBlock Grid.Row="4" Grid.Column="2" Text="°" Margin="4,0,0,0"/>
 
-                <TextBlock Grid.Row="5" Grid.Column="0" Text="Ry" VerticalAlignment="Center"/>
-                <TextBlock Grid.Row="5" Grid.Column="1" Name="TxtRy" Text="0.00" HorizontalAlignment="Right" FontFamily="Consolas"/>
+                <TextBlock Grid.Row="5" Grid.Column="0" Text="B" VerticalAlignment="Center"/>
+                <TextBlock Grid.Row="5" Grid.Column="1" Name="TxtB" Text="0.00" HorizontalAlignment="Right" FontFamily="Consolas"/>
                 <TextBlock Grid.Row="5" Grid.Column="2" Text="°" Margin="4,0,0,0"/>
 
-                <TextBlock Grid.Row="6" Grid.Column="0" Text="Rz" VerticalAlignment="Center"/>
-                <TextBlock Grid.Row="6" Grid.Column="1" Name="TxtRz" Text="0.00" HorizontalAlignment="Right" FontFamily="Consolas"/>
+                <TextBlock Grid.Row="6" Grid.Column="0" Text="C" VerticalAlignment="Center"/>
+                <TextBlock Grid.Row="6" Grid.Column="1" Name="TxtC" Text="0.00" HorizontalAlignment="Right" FontFamily="Consolas"/>
                 <TextBlock Grid.Row="6" Grid.Column="2" Text="°" Margin="4,0,0,0"/>
             </Grid>
         </GroupBox>
