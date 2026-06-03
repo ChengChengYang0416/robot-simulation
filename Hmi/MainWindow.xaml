@@ -43,9 +43,9 @@
                                     <Grid Margin="10,4">
                                         <Grid.Resources>
                                             <Style TargetType="Button" x:Key="JogBtn">
-                                                <Setter Property="Width" Value="36"/>
+                                                <Setter Property="Width" Value="44"/>
                                                 <Setter Property="Height" Value="22"/>
-                                                <Setter Property="Margin" Value="2,1"/>
+                                                <Setter Property="Margin" Value="6,1"/>
                                                 <Setter Property="Padding" Value="0"/>
                                                 <Setter Property="FontWeight" Value="Bold"/>
                                                 <Setter Property="Focusable" Value="False"/>
@@ -63,38 +63,31 @@
                                             <ColumnDefinition Width="36"/>
                                             <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
 
                                         <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Text="J1"/>
                                         <Button    Grid.Row="0" Grid.Column="1" Content="-" Tag="0:-1" Style="{StaticResource JogBtn}" PreviewMouseLeftButtonDown="JogBtn_Down" PreviewMouseLeftButtonUp="JogBtn_Up" MouseLeave="JogBtn_Leave"/>
                                         <Button    Grid.Row="0" Grid.Column="2" Content="+" Tag="0:1"  Style="{StaticResource JogBtn}" PreviewMouseLeftButtonDown="JogBtn_Down" PreviewMouseLeftButtonUp="JogBtn_Up" MouseLeave="JogBtn_Leave"/>
-                                        <TextBlock Name="LblJ1" Grid.Row="0" Grid.Column="3" VerticalAlignment="Center" Margin="10,0,0,0" FontFamily="Consolas" Text="0°"/>
 
                                         <TextBlock Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Text="J2"/>
                                         <Button    Grid.Row="1" Grid.Column="1" Content="-" Tag="1:-1" Style="{StaticResource JogBtn}" PreviewMouseLeftButtonDown="JogBtn_Down" PreviewMouseLeftButtonUp="JogBtn_Up" MouseLeave="JogBtn_Leave"/>
                                         <Button    Grid.Row="1" Grid.Column="2" Content="+" Tag="1:1"  Style="{StaticResource JogBtn}" PreviewMouseLeftButtonDown="JogBtn_Down" PreviewMouseLeftButtonUp="JogBtn_Up" MouseLeave="JogBtn_Leave"/>
-                                        <TextBlock Name="LblJ2" Grid.Row="1" Grid.Column="3" VerticalAlignment="Center" Margin="10,0,0,0" FontFamily="Consolas" Text="0°"/>
 
                                         <TextBlock Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" Text="J3"/>
                                         <Button    Grid.Row="2" Grid.Column="1" Content="-" Tag="2:-1" Style="{StaticResource JogBtn}" PreviewMouseLeftButtonDown="JogBtn_Down" PreviewMouseLeftButtonUp="JogBtn_Up" MouseLeave="JogBtn_Leave"/>
                                         <Button    Grid.Row="2" Grid.Column="2" Content="+" Tag="2:1"  Style="{StaticResource JogBtn}" PreviewMouseLeftButtonDown="JogBtn_Down" PreviewMouseLeftButtonUp="JogBtn_Up" MouseLeave="JogBtn_Leave"/>
-                                        <TextBlock Name="LblJ3" Grid.Row="2" Grid.Column="3" VerticalAlignment="Center" Margin="10,0,0,0" FontFamily="Consolas" Text="0°"/>
 
                                         <TextBlock Grid.Row="3" Grid.Column="0" VerticalAlignment="Center" Text="J4"/>
                                         <Button    Grid.Row="3" Grid.Column="1" Content="-" Tag="3:-1" Style="{StaticResource JogBtn}" PreviewMouseLeftButtonDown="JogBtn_Down" PreviewMouseLeftButtonUp="JogBtn_Up" MouseLeave="JogBtn_Leave"/>
                                         <Button    Grid.Row="3" Grid.Column="2" Content="+" Tag="3:1"  Style="{StaticResource JogBtn}" PreviewMouseLeftButtonDown="JogBtn_Down" PreviewMouseLeftButtonUp="JogBtn_Up" MouseLeave="JogBtn_Leave"/>
-                                        <TextBlock Name="LblJ4" Grid.Row="3" Grid.Column="3" VerticalAlignment="Center" Margin="10,0,0,0" FontFamily="Consolas" Text="0°"/>
 
                                         <TextBlock Grid.Row="4" Grid.Column="0" VerticalAlignment="Center" Text="J5"/>
                                         <Button    Grid.Row="4" Grid.Column="1" Content="-" Tag="4:-1" Style="{StaticResource JogBtn}" PreviewMouseLeftButtonDown="JogBtn_Down" PreviewMouseLeftButtonUp="JogBtn_Up" MouseLeave="JogBtn_Leave"/>
                                         <Button    Grid.Row="4" Grid.Column="2" Content="+" Tag="4:1"  Style="{StaticResource JogBtn}" PreviewMouseLeftButtonDown="JogBtn_Down" PreviewMouseLeftButtonUp="JogBtn_Up" MouseLeave="JogBtn_Leave"/>
-                                        <TextBlock Name="LblJ5" Grid.Row="4" Grid.Column="3" VerticalAlignment="Center" Margin="10,0,0,0" FontFamily="Consolas" Text="0°"/>
 
                                         <TextBlock Grid.Row="5" Grid.Column="0" VerticalAlignment="Center" Text="J6"/>
                                         <Button    Grid.Row="5" Grid.Column="1" Content="-" Tag="5:-1" Style="{StaticResource JogBtn}" PreviewMouseLeftButtonDown="JogBtn_Down" PreviewMouseLeftButtonUp="JogBtn_Up" MouseLeave="JogBtn_Leave"/>
                                         <Button    Grid.Row="5" Grid.Column="2" Content="+" Tag="5:1"  Style="{StaticResource JogBtn}" PreviewMouseLeftButtonDown="JogBtn_Down" PreviewMouseLeftButtonUp="JogBtn_Up" MouseLeave="JogBtn_Leave"/>
-                                        <TextBlock Name="LblJ6" Grid.Row="5" Grid.Column="3" VerticalAlignment="Center" Margin="10,0,0,0" FontFamily="Consolas" Text="0°"/>
                                     </Grid>
                                 </GroupBox>
                                 <Button Content="Reset to Home" Padding="8,4" Click="BtnResetHome_Click"/>

@@ -21,7 +21,6 @@ namespace Hmi
 	{
 		private readonly OccViewerControl _viewer;
 		private bool _robotLoaded;
-		private TextBlock[] _jointLabels;
 
 		// Joint state for JOG (replaces sliders)
 		private const int JointCount = 6;
@@ -46,7 +45,6 @@ namespace Hmi
 			Icon = new BitmapImage( new Uri( "pack://application:,,,/robot-icon.png" ) );
 			_viewer = new OccViewerControl();
 			WinFormsHost.Child = _viewer;
-			_jointLabels = new[] { LblJ1, LblJ2, LblJ3, LblJ4, LblJ5, LblJ6 };
 			SetStatus( "Ready" );
 
 			var lastFolder = GetLastModelFolder();
@@ -339,9 +337,6 @@ namespace Hmi
 		{
 			_jointAngles[ axis ] = angle;
 			_viewer.SetJointAngle( axis, angle );
-			if( _jointLabels != null && axis >= 0 && axis < _jointLabels.Length ) {
-				_jointLabels[ axis ].Text = $"{angle:F1}°";
-			}
 			UpdateDashboard();
 		}
 
@@ -352,13 +347,6 @@ namespace Hmi
 				_jointAngles[ i ] = 0.0;
 				if( _robotLoaded ) {
 					_viewer.SetJointAngle( i, 0.0 );
-				}
-			}
-			if( _jointLabels != null ) {
-				foreach( var lbl in _jointLabels ) {
-					if( lbl != null ) {
-						lbl.Text = "0°";
-					}
 				}
 			}
 			UpdateDashboard();
