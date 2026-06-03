@@ -150,7 +150,7 @@
                                 <GroupBox Header="Drag Teach" Margin="0,0,0,12">
                                     <StackPanel Margin="10">
                                         <TextBlock TextWrapping="Wrap" Margin="0,0,0,8"
-                                                   Text="拖動模式：使用滑鼠拖曳末端 (TCP) 或關節以即時擺位。"/>
+                                                   Text="Drag mode: use the mouse to drag the TCP or a joint to pose the robot in real time."/>
                                         <ToggleButton Name="TglDragEnable" Content="Enable Drag" Padding="8,4" Margin="0,0,0,8"
                                                       Checked="TglDragEnable_Changed" Unchecked="TglDragEnable_Changed"/>
                                         <TextBlock Text="Drag Target:" Margin="0,4,0,4"/>
