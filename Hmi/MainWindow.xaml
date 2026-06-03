@@ -35,12 +35,21 @@
                 <ctl:StatusDashboard x:Name="Dashboard" DockPanel.Dock="Bottom" Margin="12,0,12,12"/>
 
                 <TabControl Margin="8" SelectionChanged="ModeTab_SelectionChanged" Name="ModeTabs">
-                    <!-- ====== Manual Mode (JOG via sliders) ====== -->
+                    <!-- ====== Manual Mode (JOG via press-and-hold buttons) ====== -->
                     <TabItem Header="Manual">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <StackPanel Margin="8">
-                                <GroupBox Header="Joint Angles (JOG)" Margin="0,0,0,12">
+                                <GroupBox Header="Joint JOG (press &amp; hold)" Margin="0,0,0,12">
                                     <Grid Margin="10">
+                                        <Grid.Resources>
+                                            <Style TargetType="Button" x:Key="JogBtn">
+                                                <Setter Property="Width" Value="40"/>
+                                                <Setter Property="Height" Value="28"/>
+                                                <Setter Property="Margin" Value="2"/>
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="Focusable" Value="False"/>
+                                            </Style>
+                                        </Grid.Resources>
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="Auto"/>
                                             <RowDefinition Height="Auto"/>
@@ -51,33 +60,40 @@
                                         </Grid.RowDefinitions>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="36"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="60"/>
                                         </Grid.ColumnDefinitions>
 
                                         <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Text="J1"/>
-                                        <Slider Name="SliderJ1" Grid.Row="0" Grid.Column="1" Minimum="-170" Maximum="170" Value="0" IsSnapToTickEnabled="True" TickFrequency="1" Margin="8,4" ValueChanged="Slider_ValueChanged" Tag="0"/>
-                                        <TextBlock Name="LblJ1" Grid.Row="0" Grid.Column="2" VerticalAlignment="Center" Text="0°"/>
+                                        <Button    Grid.Row="0" Grid.Column="1" Content="-" Tag="0:-1" Style="{StaticResource JogBtn}" PreviewMouseLeftButtonDown="JogBtn_Down" PreviewMouseLeftButtonUp="JogBtn_Up" MouseLeave="JogBtn_Leave"/>
+                                        <Button    Grid.Row="0" Grid.Column="2" Content="+" Tag="0:1"  Style="{StaticResource JogBtn}" PreviewMouseLeftButtonDown="JogBtn_Down" PreviewMouseLeftButtonUp="JogBtn_Up" MouseLeave="JogBtn_Leave"/>
+                                        <TextBlock Name="LblJ1" Grid.Row="0" Grid.Column="3" VerticalAlignment="Center" Margin="10,0,0,0" FontFamily="Consolas" Text="0°"/>
 
                                         <TextBlock Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Text="J2"/>
-                                        <Slider Name="SliderJ2" Grid.Row="1" Grid.Column="1" Minimum="-96" Maximum="130" Value="0" IsSnapToTickEnabled="True" TickFrequency="1" Margin="8,4" ValueChanged="Slider_ValueChanged" Tag="1"/>
-                                        <TextBlock Name="LblJ2" Grid.Row="1" Grid.Column="2" VerticalAlignment="Center" Text="0°"/>
+                                        <Button    Grid.Row="1" Grid.Column="1" Content="-" Tag="1:-1" Style="{StaticResource JogBtn}" PreviewMouseLeftButtonDown="JogBtn_Down" PreviewMouseLeftButtonUp="JogBtn_Up" MouseLeave="JogBtn_Leave"/>
+                                        <Button    Grid.Row="1" Grid.Column="2" Content="+" Tag="1:1"  Style="{StaticResource JogBtn}" PreviewMouseLeftButtonDown="JogBtn_Down" PreviewMouseLeftButtonUp="JogBtn_Up" MouseLeave="JogBtn_Leave"/>
+                                        <TextBlock Name="LblJ2" Grid.Row="1" Grid.Column="3" VerticalAlignment="Center" Margin="10,0,0,0" FontFamily="Consolas" Text="0°"/>
 
                                         <TextBlock Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" Text="J3"/>
-                                        <Slider Name="SliderJ3" Grid.Row="2" Grid.Column="1" Minimum="-195" Maximum="65" Value="0" IsSnapToTickEnabled="True" TickFrequency="1" Margin="8,4" ValueChanged="Slider_ValueChanged" Tag="2"/>
-                                        <TextBlock Name="LblJ3" Grid.Row="2" Grid.Column="2" VerticalAlignment="Center" Text="0°"/>
+                                        <Button    Grid.Row="2" Grid.Column="1" Content="-" Tag="2:-1" Style="{StaticResource JogBtn}" PreviewMouseLeftButtonDown="JogBtn_Down" PreviewMouseLeftButtonUp="JogBtn_Up" MouseLeave="JogBtn_Leave"/>
+                                        <Button    Grid.Row="2" Grid.Column="2" Content="+" Tag="2:1"  Style="{StaticResource JogBtn}" PreviewMouseLeftButtonDown="JogBtn_Down" PreviewMouseLeftButtonUp="JogBtn_Up" MouseLeave="JogBtn_Leave"/>
+                                        <TextBlock Name="LblJ3" Grid.Row="2" Grid.Column="3" VerticalAlignment="Center" Margin="10,0,0,0" FontFamily="Consolas" Text="0°"/>
 
                                         <TextBlock Grid.Row="3" Grid.Column="0" VerticalAlignment="Center" Text="J4"/>
-                                        <Slider Name="SliderJ4" Grid.Row="3" Grid.Column="1" Minimum="-170" Maximum="170" Value="0" IsSnapToTickEnabled="True" TickFrequency="1" Margin="8,4" ValueChanged="Slider_ValueChanged" Tag="3"/>
-                                        <TextBlock Name="LblJ4" Grid.Row="3" Grid.Column="2" VerticalAlignment="Center" Text="0°"/>
+                                        <Button    Grid.Row="3" Grid.Column="1" Content="-" Tag="3:-1" Style="{StaticResource JogBtn}" PreviewMouseLeftButtonDown="JogBtn_Down" PreviewMouseLeftButtonUp="JogBtn_Up" MouseLeave="JogBtn_Leave"/>
+                                        <Button    Grid.Row="3" Grid.Column="2" Content="+" Tag="3:1"  Style="{StaticResource JogBtn}" PreviewMouseLeftButtonDown="JogBtn_Down" PreviewMouseLeftButtonUp="JogBtn_Up" MouseLeave="JogBtn_Leave"/>
+                                        <TextBlock Name="LblJ4" Grid.Row="3" Grid.Column="3" VerticalAlignment="Center" Margin="10,0,0,0" FontFamily="Consolas" Text="0°"/>
 
                                         <TextBlock Grid.Row="4" Grid.Column="0" VerticalAlignment="Center" Text="J5"/>
-                                        <Slider Name="SliderJ5" Grid.Row="4" Grid.Column="1" Minimum="-120" Maximum="120" Value="0" IsSnapToTickEnabled="True" TickFrequency="1" Margin="8,4" ValueChanged="Slider_ValueChanged" Tag="4"/>
-                                        <TextBlock Name="LblJ5" Grid.Row="4" Grid.Column="2" VerticalAlignment="Center" Text="0°"/>
+                                        <Button    Grid.Row="4" Grid.Column="1" Content="-" Tag="4:-1" Style="{StaticResource JogBtn}" PreviewMouseLeftButtonDown="JogBtn_Down" PreviewMouseLeftButtonUp="JogBtn_Up" MouseLeave="JogBtn_Leave"/>
+                                        <Button    Grid.Row="4" Grid.Column="2" Content="+" Tag="4:1"  Style="{StaticResource JogBtn}" PreviewMouseLeftButtonDown="JogBtn_Down" PreviewMouseLeftButtonUp="JogBtn_Up" MouseLeave="JogBtn_Leave"/>
+                                        <TextBlock Name="LblJ5" Grid.Row="4" Grid.Column="3" VerticalAlignment="Center" Margin="10,0,0,0" FontFamily="Consolas" Text="0°"/>
 
                                         <TextBlock Grid.Row="5" Grid.Column="0" VerticalAlignment="Center" Text="J6"/>
-                                        <Slider Name="SliderJ6" Grid.Row="5" Grid.Column="1" Minimum="-360" Maximum="360" Value="0" IsSnapToTickEnabled="True" TickFrequency="1" Margin="8,4" ValueChanged="Slider_ValueChanged" Tag="5"/>
-                                        <TextBlock Name="LblJ6" Grid.Row="5" Grid.Column="2" VerticalAlignment="Center" Text="0°"/>
+                                        <Button    Grid.Row="5" Grid.Column="1" Content="-" Tag="5:-1" Style="{StaticResource JogBtn}" PreviewMouseLeftButtonDown="JogBtn_Down" PreviewMouseLeftButtonUp="JogBtn_Up" MouseLeave="JogBtn_Leave"/>
+                                        <Button    Grid.Row="5" Grid.Column="2" Content="+" Tag="5:1"  Style="{StaticResource JogBtn}" PreviewMouseLeftButtonDown="JogBtn_Down" PreviewMouseLeftButtonUp="JogBtn_Up" MouseLeave="JogBtn_Leave"/>
+                                        <TextBlock Name="LblJ6" Grid.Row="5" Grid.Column="3" VerticalAlignment="Center" Margin="10,0,0,0" FontFamily="Consolas" Text="0°"/>
                                     </Grid>
                                 </GroupBox>
                                 <Button Content="Reset to Home" Padding="8,4" Click="BtnResetHome_Click"/>

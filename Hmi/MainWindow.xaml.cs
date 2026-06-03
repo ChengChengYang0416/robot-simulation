@@ -23,6 +23,20 @@ namespace Hmi
 		private bool _robotLoaded;
 		private TextBlock[] _jointLabels;
 
+		// Joint state for JOG (replaces sliders)
+		private const int JointCount = 6;
+		private readonly double[] _jointAngles = new double[ JointCount ];
+		private readonly double[] _jointMin = { -170, -96, -195, -170, -120, -360 };
+		private readonly double[] _jointMax = {  170, 130,   65,  170,  120,  360 };
+
+		// JOG runtime
+		private const double JogSpeedDegPerSec = 30.0;
+		private const int JogTickMs = 30;
+		private DispatcherTimer _jogTimer;
+		private int _jogAxis = -1;
+		private int _jogDir;
+		private DateTime _jogLastTick;
+
 		private const string RegistryKey = @"SOFTWARE\RobotSimulation";
 		private const string RegistryValue = "LastModelFolder";
 
@@ -230,31 +244,114 @@ namespace Hmi
 			_viewer.FitAllView();
 		}
 
-		private void Slider_ValueChanged( object sender, RoutedPropertyChangedEventArgs<double> e )
+		private void JogBtn_Down( object sender, System.Windows.Input.MouseButtonEventArgs e )
 		{
 			if( !_robotLoaded ) {
 				return;
 			}
-
-			var slider = (System.Windows.Controls.Slider)sender;
-			int axisIndex = int.Parse( slider.Tag.ToString() );
-			double angle = Math.Round( slider.Value );
-
-			_viewer.SetJointAngle( axisIndex, angle );
-
-			if( _jointLabels != null && axisIndex >= 0 && axisIndex < _jointLabels.Length ) {
-				_jointLabels[ axisIndex ].Text = $"{(int)angle}°";
+			var btn = sender as System.Windows.Controls.Button;
+			if( btn == null || !TryParseJogTag( btn.Tag, out int axis, out int dir ) ) {
+				return;
 			}
+			btn.CaptureMouse();
+			StartJog( axis, dir );
+		}
 
+		private void JogBtn_Up( object sender, System.Windows.Input.MouseButtonEventArgs e )
+		{
+			var btn = sender as System.Windows.Controls.Button;
+			if( btn != null && btn.IsMouseCaptured ) {
+				btn.ReleaseMouseCapture();
+			}
+			StopJog();
+		}
+
+		private void JogBtn_Leave( object sender, System.Windows.Input.MouseEventArgs e )
+		{
+			// If the user drags the cursor off the button while held, stop jogging.
+			var btn = sender as System.Windows.Controls.Button;
+			if( btn != null && btn.IsMouseCaptured ) {
+				btn.ReleaseMouseCapture();
+				StopJog();
+			}
+		}
+
+		private static bool TryParseJogTag( object tag, out int axis, out int dir )
+		{
+			axis = -1;
+			dir = 0;
+			var s = tag as string;
+			if( string.IsNullOrEmpty( s ) ) {
+				return false;
+			}
+			var parts = s.Split( ':' );
+			if( parts.Length != 2 ) {
+				return false;
+			}
+			return int.TryParse( parts[ 0 ], out axis ) && int.TryParse( parts[ 1 ], out dir );
+		}
+
+		private void StartJog( int axis, int dir )
+		{
+			if( axis < 0 || axis >= JointCount || dir == 0 ) {
+				return;
+			}
+			_jogAxis = axis;
+			_jogDir = dir;
+			_jogLastTick = DateTime.UtcNow;
+
+			if( _jogTimer == null ) {
+				_jogTimer = new DispatcherTimer( DispatcherPriority.Render ) {
+					Interval = TimeSpan.FromMilliseconds( JogTickMs ),
+				};
+				_jogTimer.Tick += JogTimer_Tick;
+			}
+			_jogTimer.Start();
+		}
+
+		private void StopJog()
+		{
+			_jogTimer?.Stop();
+			_jogAxis = -1;
+			_jogDir = 0;
+		}
+
+		private void JogTimer_Tick( object sender, EventArgs e )
+		{
+			if( !_robotLoaded || _jogAxis < 0 ) {
+				StopJog();
+				return;
+			}
+			var now = DateTime.UtcNow;
+			double dt = ( now - _jogLastTick ).TotalSeconds;
+			_jogLastTick = now;
+
+			double next = _jointAngles[ _jogAxis ] + _jogDir * JogSpeedDegPerSec * dt;
+			next = Math.Max( _jointMin[ _jogAxis ], Math.Min( _jointMax[ _jogAxis ], next ) );
+
+			if( Math.Abs( next - _jointAngles[ _jogAxis ] ) < 1e-6 ) {
+				return; // already at limit
+			}
+			ApplyJointAngle( _jogAxis, next );
+		}
+
+		private void ApplyJointAngle( int axis, double angle )
+		{
+			_jointAngles[ axis ] = angle;
+			_viewer.SetJointAngle( axis, angle );
+			if( _jointLabels != null && axis >= 0 && axis < _jointLabels.Length ) {
+				_jointLabels[ axis ].Text = $"{angle:F1}°";
+			}
 			UpdateDashboard();
 		}
 
 		private void ResetSliders()
 		{
-			var sliders = new[] { SliderJ1, SliderJ2, SliderJ3, SliderJ4, SliderJ5, SliderJ6 };
-			foreach( var s in sliders ) {
-				if( s != null ) {
-					s.Value = 0;
+			StopJog();
+			for( int i = 0; i < JointCount; i++ ) {
+				_jointAngles[ i ] = 0.0;
+				if( _robotLoaded ) {
+					_viewer.SetJointAngle( i, 0.0 );
 				}
 			}
 			if( _jointLabels != null ) {
@@ -264,17 +361,13 @@ namespace Hmi
 					}
 				}
 			}
+			UpdateDashboard();
 		}
 
 		private void UpdateDashboard()
 		{
-			// Pushes the latest joint angles (from sliders) and TCP pose (from native) to the dashboard.
-			var sliders = new[] { SliderJ1, SliderJ2, SliderJ3, SliderJ4, SliderJ5, SliderJ6 };
-			var angles = new double[ sliders.Length ];
-			for( int i = 0; i < sliders.Length; i++ ) {
-				angles[ i ] = sliders[ i ] != null ? sliders[ i ].Value : 0.0;
-			}
-			Dashboard.UpdateJoints( angles );
+			// Pushes the latest joint angles and TCP pose (from native) to the dashboard.
+			Dashboard.UpdateJoints( _jointAngles );
 
 			var pose = _viewer.GetTcpPose();
 			if( pose != null ) {
@@ -327,11 +420,10 @@ namespace Hmi
 
 		private void ApplyAxisLimits( double[][] limits )
 		{
-			var sliders = new[] { SliderJ1, SliderJ2, SliderJ3, SliderJ4, SliderJ5, SliderJ6 };
-			for( int i = 0; i < Math.Min( limits.Length, sliders.Length ); i++ ) {
-				if( limits[ i ].Length >= 2 && sliders[ i ] != null ) {
-					sliders[ i ].Minimum = limits[ i ][ 0 ];
-					sliders[ i ].Maximum = limits[ i ][ 1 ];
+			for( int i = 0; i < Math.Min( limits.Length, JointCount ); i++ ) {
+				if( limits[ i ].Length >= 2 ) {
+					_jointMin[ i ] = limits[ i ][ 0 ];
+					_jointMax[ i ] = limits[ i ][ 1 ];
 				}
 			}
 		}
