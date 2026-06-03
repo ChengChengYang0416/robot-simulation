@@ -27,55 +27,148 @@
 
         <Grid>
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="320"/>
+                <ColumnDefinition Width="360"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
             <DockPanel Grid.Column="0" Background="#F3F4F6" LastChildFill="True">
-                <StackPanel Margin="16">
-                    <GroupBox Header="Joint Angles" Margin="0,0,0,12">
-                    <Grid Margin="10">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="36"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="60"/>
-                        </Grid.ColumnDefinitions>
+                <ctl:StatusDashboard x:Name="Dashboard" DockPanel.Dock="Bottom" Margin="12,0,12,12"/>
 
-                        <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Text="J1"/>
-                        <Slider Name="SliderJ1" Grid.Row="0" Grid.Column="1" Minimum="-170" Maximum="170" Value="0" IsSnapToTickEnabled="True" TickFrequency="1" Margin="8,4" ValueChanged="Slider_ValueChanged" Tag="0"/>
-                        <TextBlock Name="LblJ1" Grid.Row="0" Grid.Column="2" VerticalAlignment="Center" Text="0°"/>
+                <TabControl Margin="8" SelectionChanged="ModeTab_SelectionChanged" Name="ModeTabs">
+                    <!-- ====== Manual Mode (JOG via sliders) ====== -->
+                    <TabItem Header="Manual">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel Margin="8">
+                                <GroupBox Header="Joint Angles (JOG)" Margin="0,0,0,12">
+                                    <Grid Margin="10">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="36"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="60"/>
+                                        </Grid.ColumnDefinitions>
 
-                        <TextBlock Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Text="J2"/>
-                        <Slider Name="SliderJ2" Grid.Row="1" Grid.Column="1" Minimum="-96" Maximum="130" Value="0" IsSnapToTickEnabled="True" TickFrequency="1" Margin="8,4" ValueChanged="Slider_ValueChanged" Tag="1"/>
-                        <TextBlock Name="LblJ2" Grid.Row="1" Grid.Column="2" VerticalAlignment="Center" Text="0°"/>
+                                        <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Text="J1"/>
+                                        <Slider Name="SliderJ1" Grid.Row="0" Grid.Column="1" Minimum="-170" Maximum="170" Value="0" IsSnapToTickEnabled="True" TickFrequency="1" Margin="8,4" ValueChanged="Slider_ValueChanged" Tag="0"/>
+                                        <TextBlock Name="LblJ1" Grid.Row="0" Grid.Column="2" VerticalAlignment="Center" Text="0°"/>
 
-                        <TextBlock Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" Text="J3"/>
-                        <Slider Name="SliderJ3" Grid.Row="2" Grid.Column="1" Minimum="-195" Maximum="65" Value="0" IsSnapToTickEnabled="True" TickFrequency="1" Margin="8,4" ValueChanged="Slider_ValueChanged" Tag="2"/>
-                        <TextBlock Name="LblJ3" Grid.Row="2" Grid.Column="2" VerticalAlignment="Center" Text="0°"/>
+                                        <TextBlock Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Text="J2"/>
+                                        <Slider Name="SliderJ2" Grid.Row="1" Grid.Column="1" Minimum="-96" Maximum="130" Value="0" IsSnapToTickEnabled="True" TickFrequency="1" Margin="8,4" ValueChanged="Slider_ValueChanged" Tag="1"/>
+                                        <TextBlock Name="LblJ2" Grid.Row="1" Grid.Column="2" VerticalAlignment="Center" Text="0°"/>
 
-                        <TextBlock Grid.Row="3" Grid.Column="0" VerticalAlignment="Center" Text="J4"/>
-                        <Slider Name="SliderJ4" Grid.Row="3" Grid.Column="1" Minimum="-170" Maximum="170" Value="0" IsSnapToTickEnabled="True" TickFrequency="1" Margin="8,4" ValueChanged="Slider_ValueChanged" Tag="3"/>
-                        <TextBlock Name="LblJ4" Grid.Row="3" Grid.Column="2" VerticalAlignment="Center" Text="0°"/>
+                                        <TextBlock Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" Text="J3"/>
+                                        <Slider Name="SliderJ3" Grid.Row="2" Grid.Column="1" Minimum="-195" Maximum="65" Value="0" IsSnapToTickEnabled="True" TickFrequency="1" Margin="8,4" ValueChanged="Slider_ValueChanged" Tag="2"/>
+                                        <TextBlock Name="LblJ3" Grid.Row="2" Grid.Column="2" VerticalAlignment="Center" Text="0°"/>
 
-                        <TextBlock Grid.Row="4" Grid.Column="0" VerticalAlignment="Center" Text="J5"/>
-                        <Slider Name="SliderJ5" Grid.Row="4" Grid.Column="1" Minimum="-120" Maximum="120" Value="0" IsSnapToTickEnabled="True" TickFrequency="1" Margin="8,4" ValueChanged="Slider_ValueChanged" Tag="4"/>
-                        <TextBlock Name="LblJ5" Grid.Row="4" Grid.Column="2" VerticalAlignment="Center" Text="0°"/>
+                                        <TextBlock Grid.Row="3" Grid.Column="0" VerticalAlignment="Center" Text="J4"/>
+                                        <Slider Name="SliderJ4" Grid.Row="3" Grid.Column="1" Minimum="-170" Maximum="170" Value="0" IsSnapToTickEnabled="True" TickFrequency="1" Margin="8,4" ValueChanged="Slider_ValueChanged" Tag="3"/>
+                                        <TextBlock Name="LblJ4" Grid.Row="3" Grid.Column="2" VerticalAlignment="Center" Text="0°"/>
 
-                        <TextBlock Grid.Row="5" Grid.Column="0" VerticalAlignment="Center" Text="J6"/>
-                        <Slider Name="SliderJ6" Grid.Row="5" Grid.Column="1" Minimum="-360" Maximum="360" Value="0" IsSnapToTickEnabled="True" TickFrequency="1" Margin="8,4" ValueChanged="Slider_ValueChanged" Tag="5"/>
-                        <TextBlock Name="LblJ6" Grid.Row="5" Grid.Column="2" VerticalAlignment="Center" Text="0°"/>
-                    </Grid>
-                </GroupBox>
-                    <ctl:StatusDashboard x:Name="Dashboard"/>
-                </StackPanel>
+                                        <TextBlock Grid.Row="4" Grid.Column="0" VerticalAlignment="Center" Text="J5"/>
+                                        <Slider Name="SliderJ5" Grid.Row="4" Grid.Column="1" Minimum="-120" Maximum="120" Value="0" IsSnapToTickEnabled="True" TickFrequency="1" Margin="8,4" ValueChanged="Slider_ValueChanged" Tag="4"/>
+                                        <TextBlock Name="LblJ5" Grid.Row="4" Grid.Column="2" VerticalAlignment="Center" Text="0°"/>
+
+                                        <TextBlock Grid.Row="5" Grid.Column="0" VerticalAlignment="Center" Text="J6"/>
+                                        <Slider Name="SliderJ6" Grid.Row="5" Grid.Column="1" Minimum="-360" Maximum="360" Value="0" IsSnapToTickEnabled="True" TickFrequency="1" Margin="8,4" ValueChanged="Slider_ValueChanged" Tag="5"/>
+                                        <TextBlock Name="LblJ6" Grid.Row="5" Grid.Column="2" VerticalAlignment="Center" Text="0°"/>
+                                    </Grid>
+                                </GroupBox>
+                                <Button Content="Reset to Home" Padding="8,4" Click="BtnResetHome_Click"/>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </TabItem>
+
+                    <!-- ====== Auto Mode (TCP pose input) ====== -->
+                    <TabItem Header="Auto">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel Margin="8">
+                                <GroupBox Header="Target TCP Pose" Margin="0,0,0,12">
+                                    <Grid Margin="10">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="40"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="40"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <TextBlock Grid.Row="0" Grid.Column="0" Text="X"  VerticalAlignment="Center"/>
+                                        <TextBox  Grid.Row="0" Grid.Column="1" Name="TxtPoseX"  Text="0.000" Margin="4" FontFamily="Consolas"/>
+                                        <TextBlock Grid.Row="0" Grid.Column="2" Text="mm" VerticalAlignment="Center" Margin="4,0,0,0"/>
+
+                                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Y"  VerticalAlignment="Center"/>
+                                        <TextBox  Grid.Row="1" Grid.Column="1" Name="TxtPoseY"  Text="0.000" Margin="4" FontFamily="Consolas"/>
+                                        <TextBlock Grid.Row="1" Grid.Column="2" Text="mm" VerticalAlignment="Center" Margin="4,0,0,0"/>
+
+                                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Z"  VerticalAlignment="Center"/>
+                                        <TextBox  Grid.Row="2" Grid.Column="1" Name="TxtPoseZ"  Text="0.000" Margin="4" FontFamily="Consolas"/>
+                                        <TextBlock Grid.Row="2" Grid.Column="2" Text="mm" VerticalAlignment="Center" Margin="4,0,0,0"/>
+
+                                        <TextBlock Grid.Row="3" Grid.Column="0" Text="Rx" VerticalAlignment="Center"/>
+                                        <TextBox  Grid.Row="3" Grid.Column="1" Name="TxtPoseRx" Text="0.000" Margin="4" FontFamily="Consolas"/>
+                                        <TextBlock Grid.Row="3" Grid.Column="2" Text="°"  VerticalAlignment="Center" Margin="4,0,0,0"/>
+
+                                        <TextBlock Grid.Row="4" Grid.Column="0" Text="Ry" VerticalAlignment="Center"/>
+                                        <TextBox  Grid.Row="4" Grid.Column="1" Name="TxtPoseRy" Text="0.000" Margin="4" FontFamily="Consolas"/>
+                                        <TextBlock Grid.Row="4" Grid.Column="2" Text="°"  VerticalAlignment="Center" Margin="4,0,0,0"/>
+
+                                        <TextBlock Grid.Row="5" Grid.Column="0" Text="Rz" VerticalAlignment="Center"/>
+                                        <TextBox  Grid.Row="5" Grid.Column="1" Name="TxtPoseRz" Text="0.000" Margin="4" FontFamily="Consolas"/>
+                                        <TextBlock Grid.Row="5" Grid.Column="2" Text="°"  VerticalAlignment="Center" Margin="4,0,0,0"/>
+                                    </Grid>
+                                </GroupBox>
+
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Button Grid.Column="0" Content="Copy Current" Margin="0,0,4,0" Padding="8,4" Click="BtnCopyCurrentPose_Click"/>
+                                    <Button Grid.Column="1" Content="Move To"      Margin="4,0,0,0" Padding="8,4" Click="BtnMoveTo_Click"/>
+                                </Grid>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </TabItem>
+
+                    <!-- ====== Drag Mode ====== -->
+                    <TabItem Header="Drag">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel Margin="8">
+                                <GroupBox Header="Drag Teach" Margin="0,0,0,12">
+                                    <StackPanel Margin="10">
+                                        <TextBlock TextWrapping="Wrap" Margin="0,0,0,8"
+                                                   Text="拖動模式：使用滑鼠拖曳末端 (TCP) 或關節以即時擺位。"/>
+                                        <ToggleButton Name="TglDragEnable" Content="Enable Drag" Padding="8,4" Margin="0,0,0,8"
+                                                      Checked="TglDragEnable_Changed" Unchecked="TglDragEnable_Changed"/>
+                                        <TextBlock Text="Drag Target:" Margin="0,4,0,4"/>
+                                        <StackPanel Orientation="Horizontal">
+                                            <RadioButton Name="RbDragTcp"   Content="TCP"   IsChecked="True" Margin="0,0,12,0" GroupName="DragTarget"/>
+                                            <RadioButton Name="RbDragJoint" Content="Joint"                  GroupName="DragTarget"/>
+                                        </StackPanel>
+                                        <TextBlock Text="Gizmo:" Margin="0,8,0,4"/>
+                                        <StackPanel Orientation="Horizontal">
+                                            <RadioButton Name="RbGizmoTranslate" Content="Translate" IsChecked="True" Margin="0,0,12,0" GroupName="Gizmo"/>
+                                            <RadioButton Name="RbGizmoRotate"    Content="Rotate"                     GroupName="Gizmo"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </GroupBox>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </TabItem>
+                </TabControl>
             </DockPanel>
 
             <Border Grid.Column="1" Margin="8" CornerRadius="8" BorderBrush="#D1D5DB" BorderThickness="1" Background="#2E2E2E">

@@ -282,6 +282,49 @@ namespace Hmi
 			}
 		}
 
+		private void ModeTab_SelectionChanged( object sender, SelectionChangedEventArgs e )
+		{
+			if( e.Source != ModeTabs ) {
+				return;
+			}
+			var header = ( ModeTabs.SelectedItem as TabItem )?.Header?.ToString() ?? "?";
+			SetStatus( $"Mode: {header}" );
+		}
+
+		private void BtnResetHome_Click( object sender, RoutedEventArgs e )
+		{
+			ResetSliders();
+		}
+
+		private void BtnCopyCurrentPose_Click( object sender, RoutedEventArgs e )
+		{
+			var pose = _viewer?.GetTcpPose();
+			if( pose == null || pose.Length < 6 ) {
+				SetStatus( "TCP pose unavailable" );
+				return;
+			}
+			TxtPoseX.Text = pose[ 0 ].ToString( "F3", CultureInfo.InvariantCulture );
+			TxtPoseY.Text = pose[ 1 ].ToString( "F3", CultureInfo.InvariantCulture );
+			TxtPoseZ.Text = pose[ 2 ].ToString( "F3", CultureInfo.InvariantCulture );
+			TxtPoseRx.Text = pose[ 3 ].ToString( "F3", CultureInfo.InvariantCulture );
+			TxtPoseRy.Text = pose[ 4 ].ToString( "F3", CultureInfo.InvariantCulture );
+			TxtPoseRz.Text = pose[ 5 ].ToString( "F3", CultureInfo.InvariantCulture );
+		}
+
+		private void BtnMoveTo_Click( object sender, RoutedEventArgs e )
+		{
+			// TODO: hook IK + MoveL once the kinematics bridge is wired up.
+			MessageBox.Show( this, "Move To: IK + trajectory execution not implemented yet.",
+				"Auto Mode", MessageBoxButton.OK, MessageBoxImage.Information );
+		}
+
+		private void TglDragEnable_Changed( object sender, RoutedEventArgs e )
+		{
+			// TODO: integrate with viewer drag/gizmo once available.
+			var enabled = TglDragEnable.IsChecked == true;
+			SetStatus( enabled ? "Drag enabled (stub)" : "Drag disabled" );
+		}
+
 		private void ApplyAxisLimits( double[][] limits )
 		{
 			var sliders = new[] { SliderJ1, SliderJ2, SliderJ3, SliderJ4, SliderJ5, SliderJ6 };
