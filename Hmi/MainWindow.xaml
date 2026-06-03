@@ -117,16 +117,16 @@
                                         <TextBox  Grid.Row="2" Grid.Column="1" Name="TxtPoseZ"  Text="0.000" Margin="4" FontFamily="Consolas"/>
                                         <TextBlock Grid.Row="2" Grid.Column="2" Text="mm" VerticalAlignment="Center" Margin="4,0,0,0"/>
 
-                                        <TextBlock Grid.Row="3" Grid.Column="0" Text="Rx" VerticalAlignment="Center"/>
-                                        <TextBox  Grid.Row="3" Grid.Column="1" Name="TxtPoseRx" Text="0.000" Margin="4" FontFamily="Consolas"/>
+                                        <TextBlock Grid.Row="3" Grid.Column="0" Text="A" VerticalAlignment="Center" ToolTip="Rotation about X axis"/>
+                                        <TextBox  Grid.Row="3" Grid.Column="1" Name="TxtPoseA" Text="0.000" Margin="4" FontFamily="Consolas"/>
                                         <TextBlock Grid.Row="3" Grid.Column="2" Text="°"  VerticalAlignment="Center" Margin="4,0,0,0"/>
 
-                                        <TextBlock Grid.Row="4" Grid.Column="0" Text="Ry" VerticalAlignment="Center"/>
-                                        <TextBox  Grid.Row="4" Grid.Column="1" Name="TxtPoseRy" Text="0.000" Margin="4" FontFamily="Consolas"/>
+                                        <TextBlock Grid.Row="4" Grid.Column="0" Text="B" VerticalAlignment="Center" ToolTip="Rotation about Y axis"/>
+                                        <TextBox  Grid.Row="4" Grid.Column="1" Name="TxtPoseB" Text="0.000" Margin="4" FontFamily="Consolas"/>
                                         <TextBlock Grid.Row="4" Grid.Column="2" Text="°"  VerticalAlignment="Center" Margin="4,0,0,0"/>
 
-                                        <TextBlock Grid.Row="5" Grid.Column="0" Text="Rz" VerticalAlignment="Center"/>
-                                        <TextBox  Grid.Row="5" Grid.Column="1" Name="TxtPoseRz" Text="0.000" Margin="4" FontFamily="Consolas"/>
+                                        <TextBlock Grid.Row="5" Grid.Column="0" Text="C" VerticalAlignment="Center" ToolTip="Rotation about Z axis"/>
+                                        <TextBox  Grid.Row="5" Grid.Column="1" Name="TxtPoseC" Text="0.000" Margin="4" FontFamily="Consolas"/>
                                         <TextBlock Grid.Row="5" Grid.Column="2" Text="°"  VerticalAlignment="Center" Margin="4,0,0,0"/>
                                     </Grid>
                                 </GroupBox>

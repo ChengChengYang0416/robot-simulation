@@ -306,9 +306,9 @@ namespace Hmi
 			TxtPoseX.Text = pose[ 0 ].ToString( "F3", CultureInfo.InvariantCulture );
 			TxtPoseY.Text = pose[ 1 ].ToString( "F3", CultureInfo.InvariantCulture );
 			TxtPoseZ.Text = pose[ 2 ].ToString( "F3", CultureInfo.InvariantCulture );
-			TxtPoseRx.Text = pose[ 3 ].ToString( "F3", CultureInfo.InvariantCulture );
-			TxtPoseRy.Text = pose[ 4 ].ToString( "F3", CultureInfo.InvariantCulture );
-			TxtPoseRz.Text = pose[ 5 ].ToString( "F3", CultureInfo.InvariantCulture );
+			TxtPoseA.Text = pose[ 3 ].ToString( "F3", CultureInfo.InvariantCulture );
+			TxtPoseB.Text = pose[ 4 ].ToString( "F3", CultureInfo.InvariantCulture );
+			TxtPoseC.Text = pose[ 5 ].ToString( "F3", CultureInfo.InvariantCulture );
 		}
 
 		private void BtnMoveTo_Click( object sender, RoutedEventArgs e )
