@@ -17,12 +17,18 @@
     <ClInclude Include="NativeOccView.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="TransformBuilder.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="OccViewerControl.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="NativeOccView.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="TransformBuilder.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

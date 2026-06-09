@@ -5,6 +5,7 @@
 #include <cmath>
 #include "NativeOccView.h"
 #include "RobotPartDef.h"
+#include "TransformBuilder.h"
 #include <AIS_InteractiveContext.hxx>
 #include <AIS_Shape.hxx>
 #include <AIS_Trihedron.hxx>
@@ -19,10 +20,8 @@
 #include <WNT_Window.hxx>
 #include <gp_Trsf.hxx>
 #include <Quantity_Color.hxx>
-#include <gp_Ax1.hxx>
 #include <gp_Pnt.hxx>
 #include <gp_Dir.hxx>
-#include <gp_Vec.hxx>
 
 enum class MouseButton : int {
 	Left   = 1048576,
@@ -54,89 +53,9 @@ struct NativeOccView::Impl
 	bool hasTcp = false;
 };
 
-static constexpr double kPi = 3.14159265358979323846;
-static constexpr double kDegToRad = kPi / 180.0;
-static constexpr double kEpsilon = 1e-10;
+static constexpr double kPi = OccBridge::Transform::kPi;
+static constexpr double kEpsilon = OccBridge::Transform::kEpsilon;
 static constexpr double kZoomFactor = 1.15;
-
-static gp_Trsf makeDhTransform( double a, double alphaDeg, double d, double thetaDeg )
-// makes a homogeneous transformation from DH parameters,
-// applying rotations in the order Rx(alpha) * Tx(a) * Tz(d) * Rz(theta)
-{
-	const double alphaRad = alphaDeg * kDegToRad;
-	const double thetaRad = thetaDeg * kDegToRad;
-
-	// Build each elementary transform separately; skipping near-zero ones avoids
-	// accumulating floating-point noise in the final 4x4 matrix.
-	// Standard DH convention: T_i = Rz(theta) * Tz(d) * Tx(a) * Rx(alpha)
-	//   theta : joint rotation around previous Z axis
-	//   d     : link offset along previous Z axis
-	//   a     : link length along common normal (new X axis)
-	//   alpha : link twist around new X axis
-	gp_Trsf rz;
-	if( std::abs( thetaRad ) > kEpsilon ) {
-		rz.SetRotation( gp_Ax1( gp_Pnt( 0, 0, 0 ), gp_Dir( 0, 0, 1 ) ), thetaRad );
-	}
-
-	gp_Trsf tz;
-	if( std::abs( d ) > kEpsilon ) {
-		tz.SetTranslation( gp_Vec( 0, 0, d ) );
-	}
-
-	gp_Trsf tx;
-	if( std::abs( a ) > kEpsilon ) {
-		tx.SetTranslation( gp_Vec( a, 0, 0 ) );
-	}
-
-	gp_Trsf rx;
-	if( std::abs( alphaRad ) > kEpsilon ) {
-		rx.SetRotation( gp_Ax1( gp_Pnt( 0, 0, 0 ), gp_Dir( 1, 0, 0 ) ), alphaRad );
-	}
-
-	// gp_Trsf::Multiply post-multiplies, so the call order below matches the
-	// mathematical left-to-right product Rz * Tz * Tx * Rx.
-	gp_Trsf result = rz;
-	result.Multiply( tz );
-	result.Multiply( tx );
-	result.Multiply( rx );
-	return result;
-}
-
-static gp_Trsf makeOffsetTransform( double tx, double ty, double tz,
-								   double rxDeg, double ryDeg, double rzDeg )
-// makes a homogeneous transformation from offset parameters,
-// applying rotations in the order Rx * Ry * Rz, then translation
-{
-	// Each CAD STEP file is authored in its own local frame which generally does
-	// not coincide with the DH joint frame. The offset parameters describe the
-	// fixed rigid transform that places the CAD geometry inside the joint frame.
-	gp_Trsf rotX;
-	if( std::abs( rxDeg ) > kEpsilon ) {
-		rotX.SetRotation( gp_Ax1( gp_Pnt( 0, 0, 0 ), gp_Dir( 1, 0, 0 ) ), rxDeg * kDegToRad );
-	}
-
-	gp_Trsf rotY;
-	if( std::abs( ryDeg ) > kEpsilon ) {
-		rotY.SetRotation( gp_Ax1( gp_Pnt( 0, 0, 0 ), gp_Dir( 0, 1, 0 ) ), ryDeg * kDegToRad );
-	}
-
-	gp_Trsf rotZ;
-	if( std::abs( rzDeg ) > kEpsilon ) {
-		rotZ.SetRotation( gp_Ax1( gp_Pnt( 0, 0, 0 ), gp_Dir( 0, 0, 1 ) ), rzDeg * kDegToRad );
-	}
-
-	gp_Trsf trans;
-	if( std::abs( tx ) > kEpsilon || std::abs( ty ) > kEpsilon || std::abs( tz ) > kEpsilon ) {
-		trans.SetTranslation( gp_Vec( tx, ty, tz ) );
-	}
-
-	// T * Rz * Ry * Rx: cancels DH rotation, placing CAD in original orientation
-	gp_Trsf result = trans;
-	result.Multiply( rotZ );
-	result.Multiply( rotY );
-	result.Multiply( rotX );
-	return result;
-}
 
 static std::string wideToUtf8( const wchar_t* wide )
 // Converts a wide-character string to UTF-8 using Windows API functions
@@ -369,7 +288,7 @@ void NativeOccView::updateRobotTransforms( void )
 	std::vector<gp_Trsf> dhCumulative( n );
 	for( int i = 0; i < n; ++i ) {
 		const double theta = m_impl->partDefs[ i ].dhTheta + partJointDelta[ i ];
-		gp_Trsf dhLocal = makeDhTransform(
+		gp_Trsf dhLocal = OccBridge::Transform::makeDh(
 			m_impl->partDefs[ i ].dhA, m_impl->partDefs[ i ].dhAlpha,
 			m_impl->partDefs[ i ].dhD, theta );
 
@@ -390,7 +309,7 @@ void NativeOccView::updateRobotTransforms( void )
 			continue;
 		}
 
-		gp_Trsf offsetTrsf = makeOffsetTransform(
+		gp_Trsf offsetTrsf = OccBridge::Transform::makeOffset(
 			m_impl->partDefs[ i ].offset[ 0 ], m_impl->partDefs[ i ].offset[ 1 ], m_impl->partDefs[ i ].offset[ 2 ],
 			m_impl->partDefs[ i ].offset[ 3 ], m_impl->partDefs[ i ].offset[ 4 ], m_impl->partDefs[ i ].offset[ 5 ] );
 
@@ -452,7 +371,7 @@ void NativeOccView::fitAll( void )
 bool NativeOccView::getTcpPose( double out[6] ) const
 // Returns the cached TCP pose as [x, y, z, rx, ry, rz] in mm and degrees.
 // Euler convention: R = Rz(rz) * Ry(ry) * Rx(rx) (ZYX intrinsic == XYZ extrinsic),
-// matching the rotation order used by makeOffsetTransform for consistency.
+// matching the rotation order used by Transform::makeOffset for consistency.
 // Returns false if no robot is loaded.
 {
 	if( out == nullptr || !m_impl->hasTcp ) {
