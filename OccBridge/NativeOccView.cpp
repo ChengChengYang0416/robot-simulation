@@ -6,6 +6,7 @@
 #include "RobotPartDef.h"
 #include "../Kinematics/TcpPoseSolver.h"
 #include "../Kinematics/TransformBuilder.h"
+#include "../Utility/StringUtil.h"
 #include <AIS_InteractiveContext.hxx>
 #include <AIS_Shape.hxx>
 #include <AIS_Trihedron.hxx>
@@ -54,15 +55,6 @@ struct NativeOccView::Impl
 };
 
 static constexpr double kZoomFactor = 1.15;
-
-static std::string wideToUtf8( const wchar_t* wide )
-// Converts a wide-character string to UTF-8 using Windows API functions
-{
-	const int len = WideCharToMultiByte( CP_UTF8, 0, wide, -1, nullptr, 0, nullptr, nullptr );
-	std::string utf8( len - 1, '\0' );
-	WideCharToMultiByte( CP_UTF8, 0, wide, -1, &utf8[ 0 ], len, nullptr, nullptr );
-	return utf8;
-}
 
 NativeOccView::NativeOccView( void )
 	: m_impl( new Impl() )
@@ -138,7 +130,7 @@ bool NativeOccView::loadStep( const wchar_t* filePath, bool append )
 		clearScene();
 	}
 
-	const std::string utf8Path = wideToUtf8( filePath );
+	const std::string utf8Path = Utility::wideToUtf8( filePath );
 
 	STEPControl_Reader reader;
 	const IFSelect_ReturnStatus status = reader.ReadFile( utf8Path.c_str() );
@@ -191,7 +183,7 @@ bool NativeOccView::loadRobotPart( int index )
 	}
 
 	const auto& part = m_impl->partDefs[ index ];
-	const std::string utf8Path = wideToUtf8( part.filePath.c_str() );
+	const std::string utf8Path = Utility::wideToUtf8( part.filePath.c_str() );
 
 	// On read failure, push empty placeholders so that vector indices remain in
 	// lock-step with partDefs. updateRobotTransforms() then skips null entries.
