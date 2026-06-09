@@ -104,6 +104,7 @@
     <ClInclude Include="NativeOccView.h" />
     <ClInclude Include="RobotPartDef.h" />
     <ClInclude Include="TransformBuilder.h" />
+    <ClInclude Include="TcpPoseSolver.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="OccViewerControl.cpp" />
@@ -112,6 +113,10 @@
       <ExceptionHandling>Sync</ExceptionHandling>
     </ClCompile>
     <ClCompile Include="TransformBuilder.cpp">
+      <CompileAsManaged>false</CompileAsManaged>
+      <ExceptionHandling>Sync</ExceptionHandling>
+    </ClCompile>
+    <ClCompile Include="TcpPoseSolver.cpp">
       <CompileAsManaged>false</CompileAsManaged>
       <ExceptionHandling>Sync</ExceptionHandling>
     </ClCompile>

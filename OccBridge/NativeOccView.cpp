@@ -2,9 +2,9 @@
 #include <cstdint>
 #include <string>
 #include <vector>
-#include <cmath>
 #include "NativeOccView.h"
 #include "RobotPartDef.h"
+#include "TcpPoseSolver.h"
 #include "TransformBuilder.h"
 #include <AIS_InteractiveContext.hxx>
 #include <AIS_Shape.hxx>
@@ -53,8 +53,6 @@ struct NativeOccView::Impl
 	bool hasTcp = false;
 };
 
-static constexpr double kPi = OccBridge::Transform::kPi;
-static constexpr double kEpsilon = OccBridge::Transform::kEpsilon;
 static constexpr double kZoomFactor = 1.15;
 
 static std::string wideToUtf8( const wchar_t* wide )
@@ -370,45 +368,17 @@ void NativeOccView::fitAll( void )
 
 bool NativeOccView::getTcpPose( double out[6] ) const
 // Returns the cached TCP pose as [x, y, z, rx, ry, rz] in mm and degrees.
-// Euler convention: R = Rz(rz) * Ry(ry) * Rx(rx) (ZYX intrinsic == XYZ extrinsic),
-// matching the rotation order used by Transform::makeOffset for consistency.
-// Returns false if no robot is loaded.
+// Delegates the matrix decomposition to OccBridge::solveTcpPose so the Euler
+// convention stays in one place. Returns false if no robot is loaded.
 {
 	if( out == nullptr || !m_impl->hasTcp ) {
 		return false;
 	}
 
-	const gp_Trsf& t = m_impl->tcpTrsf;
-
-	// Translation: gp_Trsf::Value uses 1-based indices; column 4 is translation.
-	out[ 0 ] = t.Value( 1, 4 );
-	out[ 1 ] = t.Value( 2, 4 );
-	out[ 2 ] = t.Value( 3, 4 );
-
-	// Rotation matrix elements (row, col), 1-based.
-	const double r00 = t.Value( 1, 1 );
-	const double r10 = t.Value( 2, 1 );
-	const double r20 = t.Value( 3, 1 );
-	const double r21 = t.Value( 3, 2 );
-	const double r22 = t.Value( 3, 3 );
-
-	const double sy = std::sqrt( r00 * r00 + r10 * r10 );
-	double rx, ry, rz;
-	if( sy > kEpsilon ) {
-		rx = std::atan2( r21, r22 );
-		ry = std::atan2( -r20, sy );
-		rz = std::atan2( r10, r00 );
-	} else {
-		// Gimbal lock: ry is +/- 90 deg, rz is set to 0 by convention.
-		rx = std::atan2( -t.Value( 2, 3 ), t.Value( 2, 2 ) );
-		ry = std::atan2( -r20, sy );
-		rz = 0.0;
+	const auto pose = OccBridge::solveTcpPose( m_impl->tcpTrsf );
+	for( int i = 0; i < 6; ++i ) {
+		out[ i ] = pose[ i ];
 	}
-
-	const double kRadToDeg = 180.0 / kPi;
-	out[ 3 ] = rx * kRadToDeg;
-	out[ 4 ] = ry * kRadToDeg;
-	out[ 5 ] = rz * kRadToDeg;
 	return true;
 }
 
