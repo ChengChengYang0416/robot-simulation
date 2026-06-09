@@ -103,8 +103,6 @@
     <ClInclude Include="OccViewerControl.h" />
     <ClInclude Include="NativeOccView.h" />
     <ClInclude Include="RobotPartDef.h" />
-    <ClInclude Include="TransformBuilder.h" />
-    <ClInclude Include="TcpPoseSolver.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="OccViewerControl.cpp" />
@@ -112,14 +110,11 @@
       <CompileAsManaged>false</CompileAsManaged>
       <ExceptionHandling>Sync</ExceptionHandling>
     </ClCompile>
-    <ClCompile Include="TransformBuilder.cpp">
-      <CompileAsManaged>false</CompileAsManaged>
-      <ExceptionHandling>Sync</ExceptionHandling>
-    </ClCompile>
-    <ClCompile Include="TcpPoseSolver.cpp">
-      <CompileAsManaged>false</CompileAsManaged>
-      <ExceptionHandling>Sync</ExceptionHandling>
-    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Kinematics\Kinematics.vcxproj">
+      <Project>{2B6E5A1E-1234-4ABC-9D01-1A2B3C4D5E62}</Project>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <Reference Include="System" />

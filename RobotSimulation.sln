@@ -6,6 +6,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hmi", "Hmi\Hmi.csproj", "{8
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "OccBridge", "OccBridge\OccBridge.vcxproj", "{FB92EB78-B432-4D16-8F16-8471A16F6212}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Kinematics", "Kinematics\Kinematics.vcxproj", "{2B6E5A1E-1234-4ABC-9D01-1A2B3C4D5E62}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -20,6 +22,10 @@ Global
 		{FB92EB78-B432-4D16-8F16-8471A16F6212}.Debug|x64.Build.0 = Debug|x64
 		{FB92EB78-B432-4D16-8F16-8471A16F6212}.Release|x64.ActiveCfg = Release|x64
 		{FB92EB78-B432-4D16-8F16-8471A16F6212}.Release|x64.Build.0 = Release|x64
+		{2B6E5A1E-1234-4ABC-9D01-1A2B3C4D5E62}.Debug|x64.ActiveCfg = Debug|x64
+		{2B6E5A1E-1234-4ABC-9D01-1A2B3C4D5E62}.Debug|x64.Build.0 = Debug|x64
+		{2B6E5A1E-1234-4ABC-9D01-1A2B3C4D5E62}.Release|x64.ActiveCfg = Release|x64
+		{2B6E5A1E-1234-4ABC-9D01-1A2B3C4D5E62}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

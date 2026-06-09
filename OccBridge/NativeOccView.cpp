@@ -4,8 +4,8 @@
 #include <vector>
 #include "NativeOccView.h"
 #include "RobotPartDef.h"
-#include "TcpPoseSolver.h"
-#include "TransformBuilder.h"
+#include "../Kinematics/TcpPoseSolver.h"
+#include "../Kinematics/TransformBuilder.h"
 #include <AIS_InteractiveContext.hxx>
 #include <AIS_Shape.hxx>
 #include <AIS_Trihedron.hxx>
