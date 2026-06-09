@@ -39,7 +39,7 @@
                     <TabItem Header="Manual">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <StackPanel Margin="8">
-                                <GroupBox Header="Joint JOG (press &amp; hold)" Margin="0,0,0,12">
+                                <GroupBox Header="Joint JOG" Margin="0,0,0,12">
                                     <Grid Margin="10,4">
                                         <Grid.Resources>
                                             <Style TargetType="Button" x:Key="JogBtn">
