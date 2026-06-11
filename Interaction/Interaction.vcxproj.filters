@@ -11,11 +11,17 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="CameraController.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="MouseInteractor.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="CameraController.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="MouseInteractor.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>

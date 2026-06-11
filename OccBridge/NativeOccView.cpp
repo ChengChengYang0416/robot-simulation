@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <vector>
 #include "NativeOccView.h"
+#include "../Interaction/CameraController.h"
 #include "../Interaction/MouseInteractor.h"
 #include "../Kinematics/RobotKinematics.h"
 #include "../Kinematics/RobotPartDef.h"
@@ -29,6 +30,7 @@ struct NativeOccView::Impl
 
 	Scene::SceneRepository repo;
 	Interaction::MouseInteractor mouse;
+	Interaction::CameraController camera;
 	OccBridge::RobotKinematics kin;
 
 	// Maps part index -> SceneRepository slot id; -1 when the STEP file failed to
@@ -66,6 +68,7 @@ void NativeOccView::initialize( HWND hwnd )
 	m_impl->view = m_impl->viewer->CreateView();
 	m_impl->repo.attach( m_impl->context );
 	m_impl->mouse.attach( m_impl->view, m_impl->context );
+	m_impl->camera.attach( m_impl->view );
 
 	// Bind the OCCT view to the host HWND. WNT_Window must be mapped before the
 	// first redraw, otherwise OpenGL has no surface to draw onto.
@@ -241,13 +244,9 @@ void NativeOccView::clearScene( void )
 }
 
 void NativeOccView::fitAll( void )
-// Calls FitAll and ZFitAll to ensure the scene is fully visible in both axes
+// Delegates to CameraController::fitAll (FitAll + ZFitAll + Redraw).
 {
-	if( !m_impl->view.IsNull() ) {
-		m_impl->view->FitAll();
-		m_impl->view->ZFitAll();
-		m_impl->view->Redraw();
-	}
+	m_impl->camera.fitAll();
 }
 
 bool NativeOccView::getTcpPose( double out[6] ) const
@@ -272,21 +271,15 @@ bool NativeOccView::getTcpPose( double out[6] ) const
 }
 
 void NativeOccView::setViewIso( void )
-// Sets projection to X+Y-Z+ for an isometric look, then fits all
+// Delegates to CameraController::setViewIso (isometric projection + fitAll).
 {
-	if( !m_impl->view.IsNull() ) {
-		m_impl->view->SetProj( V3d_XposYnegZpos );
-		fitAll();
-	}
+	m_impl->camera.setViewIso();
 }
 
 void NativeOccView::setViewTop( void )
-// Sets projection to Z+ (top-down) then fits all
+// Delegates to CameraController::setViewTop (top-down projection + fitAll).
 {
-	if( !m_impl->view.IsNull() ) {
-		m_impl->view->SetProj( V3d_Zpos );
-		fitAll();
-	}
+	m_impl->camera.setViewTop();
 }
 
 void NativeOccView::onMouseDown( int x, int y, int button )
