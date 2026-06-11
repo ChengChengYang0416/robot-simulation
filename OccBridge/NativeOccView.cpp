@@ -9,24 +9,12 @@
 #include "../Kinematics/TcpPoseSolver.h"
 #include "../Scene/SceneRepository.h"
 #include "../Scene/StepLoader.h"
-#include <AIS_InteractiveContext.hxx>
-#include <Aspect_DisplayConnection.hxx>
-#include <OpenGl_GraphicDriver.hxx>
-#include <V3d_View.hxx>
-#include <V3d_Viewer.hxx>
-#include <WNT_Window.hxx>
-#include <gp_Trsf.hxx>
+#include "../Viewer/ViewportContext.h"
 #include <Quantity_Color.hxx>
 
 struct NativeOccView::Impl
 {
-	HWND hwnd = nullptr;
-
-	Handle( Aspect_DisplayConnection ) displayConnection;
-	Handle( OpenGl_GraphicDriver ) graphicDriver;
-	Handle( V3d_Viewer ) viewer;
-	Handle( V3d_View ) view;
-	Handle( AIS_InteractiveContext ) context;
+	Viewer::ViewportContext viewport;
 
 	Scene::SceneRepository repo;
 	Interaction::MouseInteractor mouse;
@@ -52,63 +40,31 @@ NativeOccView::~NativeOccView( void )
 }
 
 void NativeOccView::initialize( HWND hwnd )
-// Creates the OCCT driver, Viewer, Context, and View, then binds them to the Win32 window
+// Boots the OCCT rendering stack via ViewportContext, then wires every helper
+// (scene repo, mouse, camera) to the resulting view / context handles.
 {
-	m_impl->hwnd = hwnd;
-
-	// OCCT rendering stack (bottom to top):
-	//   DisplayConnection -> GraphicDriver -> Viewer -> View / InteractiveContext
-	// The Viewer owns lights and shared state; the Context manages AIS objects.
-	m_impl->displayConnection = new Aspect_DisplayConnection();
-	m_impl->graphicDriver = new OpenGl_GraphicDriver( m_impl->displayConnection );
-	m_impl->viewer = new V3d_Viewer( m_impl->graphicDriver );
-	m_impl->viewer->SetDefaultLights();
-	m_impl->viewer->SetLightOn();
-	m_impl->context = new AIS_InteractiveContext( m_impl->viewer );
-	m_impl->view = m_impl->viewer->CreateView();
-	m_impl->repo.attach( m_impl->context );
-	m_impl->mouse.attach( m_impl->view, m_impl->context );
-	m_impl->camera.attach( m_impl->view );
-
-	// Bind the OCCT view to the host HWND. WNT_Window must be mapped before the
-	// first redraw, otherwise OpenGL has no surface to draw onto.
-	Handle( WNT_Window ) window = new WNT_Window( reinterpret_cast<Aspect_Handle>( m_impl->hwnd ) );
-	m_impl->view->SetWindow( window );
-	if( !window->IsMapped() ) {
-		window->Map();
-	}
-
-	m_impl->view->SetBackgroundColor( Quantity_NOC_GRAY30 );
-	// Corner trihedron: per-axis colors (X=blue, Y=green, Z=red) must be configured
-	// via ZBufferTriedronSetup before calling TriedronDisplay.
-	m_impl->view->ZBufferTriedronSetup( Quantity_NOC_BLUE, Quantity_NOC_GREEN, Quantity_NOC_RED );
-	m_impl->view->TriedronDisplay( Aspect_TOTP_LEFT_LOWER, Quantity_NOC_WHITE, 0.08, V3d_ZBUFFER );
-	m_impl->view->MustBeResized();
-	m_impl->view->SetProj( V3d_XposYnegZpos );
-	m_impl->view->Redraw();
+	m_impl->viewport.initialize( hwnd );
+	m_impl->repo.attach( m_impl->viewport.context() );
+	m_impl->mouse.attach( m_impl->viewport.view(), m_impl->viewport.context() );
+	m_impl->camera.attach( m_impl->viewport.view() );
 }
 
-void NativeOccView::resize( int /*width*/, int /*height*/ )
-// Notifies the OCCT View that the window size changed and triggers a redraw
+void NativeOccView::resize( int width, int height )
+// Forwards to ViewportContext; OCCT re-queries WNT_Window for the actual size.
 {
-	if( !m_impl->view.IsNull() ) {
-		m_impl->view->MustBeResized();
-		m_impl->view->Redraw();
-	}
+	m_impl->viewport.resize( width, height );
 }
 
 void NativeOccView::redraw( void )
-// Requests an immediate OCCT View redraw without recalculating scene structure
+// Forwards to ViewportContext for a fast scene-only redraw.
 {
-	if( !m_impl->view.IsNull() ) {
-		m_impl->view->Redraw();
-	}
+	m_impl->viewport.redraw();
 }
 
 bool NativeOccView::loadStep( const wchar_t* filePath, bool append )
 // Reads a STEP file via Scene::StepLoader and displays the merged root shape.
 {
-	if( m_impl->context.IsNull() ) {
+	if( m_impl->viewport.context().IsNull() ) {
 		return false;
 	}
 
@@ -135,7 +91,7 @@ bool NativeOccView::beginRobotArm( const RobotPartDef* parts, int partCount,
 // Clears the scene and configures the kinematics solver with the part definitions and
 // axis-to-part mapping. RobotKinematics owns the part list and joint angles from here on.
 {
-	if( m_impl->context.IsNull() ) {
+	if( m_impl->viewport.context().IsNull() ) {
 		return false;
 	}
 
