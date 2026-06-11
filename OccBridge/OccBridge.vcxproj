@@ -111,6 +111,9 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Interaction\Interaction.vcxproj">
+      <Project>{2B6E5A1E-1234-4ABC-9D01-1A2B3C4D5E64}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\Kinematics\Kinematics.vcxproj">
       <Project>{2B6E5A1E-1234-4ABC-9D01-1A2B3C4D5E62}</Project>
     </ProjectReference>

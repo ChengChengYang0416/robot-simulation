@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <vector>
 #include "NativeOccView.h"
+#include "../Interaction/MouseInteractor.h"
 #include "../Kinematics/RobotKinematics.h"
 #include "../Kinematics/RobotPartDef.h"
 #include "../Kinematics/TcpPoseSolver.h"
@@ -16,18 +17,9 @@
 #include <gp_Trsf.hxx>
 #include <Quantity_Color.hxx>
 
-enum class MouseButton : int {
-	Left   = 1048576,
-	Middle = 4194304
-};
-
 struct NativeOccView::Impl
 {
 	HWND hwnd = nullptr;
-	int lastX = 0;
-	int lastY = 0;
-	bool isRotating = false;
-	bool isPanning  = false;
 
 	Handle( Aspect_DisplayConnection ) displayConnection;
 	Handle( OpenGl_GraphicDriver ) graphicDriver;
@@ -36,6 +28,7 @@ struct NativeOccView::Impl
 	Handle( AIS_InteractiveContext ) context;
 
 	Scene::SceneRepository repo;
+	Interaction::MouseInteractor mouse;
 	OccBridge::RobotKinematics kin;
 
 	// Maps part index -> SceneRepository slot id; -1 when the STEP file failed to
@@ -43,8 +36,6 @@ struct NativeOccView::Impl
 	// to keep shapes vector in lock-step with part definitions.
 	std::vector<int> partToSlot;
 };
-
-static constexpr double kZoomFactor = 1.15;
 
 NativeOccView::NativeOccView( void )
 	: m_impl( new Impl() )
@@ -74,6 +65,7 @@ void NativeOccView::initialize( HWND hwnd )
 	m_impl->context = new AIS_InteractiveContext( m_impl->viewer );
 	m_impl->view = m_impl->viewer->CreateView();
 	m_impl->repo.attach( m_impl->context );
+	m_impl->mouse.attach( m_impl->view, m_impl->context );
 
 	// Bind the OCCT view to the host HWND. WNT_Window must be mapped before the
 	// first redraw, otherwise OpenGL has no surface to draw onto.
@@ -298,54 +290,25 @@ void NativeOccView::setViewTop( void )
 }
 
 void NativeOccView::onMouseDown( int x, int y, int button )
-// Records the start position; left button begins OCCT rotation, middle button begins pan
+// Forwards to MouseInteractor, which owns the rotate / pan state machine.
 {
-	m_impl->lastX = x;
-	m_impl->lastY = y;
-
-	if( button == static_cast<int>( MouseButton::Left ) ) {
-		m_impl->isRotating = true;
-		if( !m_impl->view.IsNull() ) {
-			m_impl->view->StartRotation( x, y );
-		}
-	} else if( button == static_cast<int>( MouseButton::Middle ) ) {
-		m_impl->isPanning = true;
-	}
+	m_impl->mouse.onMouseDown( x, y, button );
 }
 
-void NativeOccView::onMouseMove( int x, int y, int /*buttonMask*/ )
-// Executes rotation or pan based on active flags; otherwise updates cursor highlight
+void NativeOccView::onMouseMove( int x, int y, int buttonMask )
+// Forwards to MouseInteractor; with no active drag it also drives hover highlight.
 {
-	if( m_impl->view.IsNull() || m_impl->context.IsNull() ) {
-		return;
-	}
-
-	if( m_impl->isRotating ) {
-		m_impl->view->Rotation( x, y );
-	} else if( m_impl->isPanning ) {
-		m_impl->view->Pan( x - m_impl->lastX, m_impl->lastY - y );
-		m_impl->lastX = x;
-		m_impl->lastY = y;
-	} else {
-		m_impl->context->MoveTo( x, y, m_impl->view, Standard_True );
-	}
+	m_impl->mouse.onMouseMove( x, y, buttonMask );
 }
 
 void NativeOccView::onMouseUp( void )
-// Clears rotation and pan flags, ending the interactive operation
+// Clears the active rotate / pan flags in MouseInteractor.
 {
-	m_impl->isRotating = false;
-	m_impl->isPanning = false;
+	m_impl->mouse.onMouseUp();
 }
 
 void NativeOccView::onMouseWheel( int delta )
-// Zooms the scene by a fixed factor based on wheel direction
+// Forwards to MouseInteractor::onMouseWheel for zoom-in / zoom-out.
 {
-	if( m_impl->view.IsNull() ) {
-		return;
-	}
-
-	const double factor = (delta > 0) ? kZoomFactor : (1.0 / kZoomFactor);
-	m_impl->view->SetZoom( factor );
-	m_impl->view->Redraw();
+	m_impl->mouse.onMouseWheel( delta );
 }
