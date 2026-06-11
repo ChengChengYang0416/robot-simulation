@@ -3,9 +3,9 @@
 #include <string>
 #include <vector>
 #include "NativeOccView.h"
+#include "../Kinematics/RobotKinematics.h"
 #include "../Kinematics/RobotPartDef.h"
 #include "../Kinematics/TcpPoseSolver.h"
-#include "../Kinematics/TransformBuilder.h"
 #include "../Utility/StringUtil.h"
 #include <AIS_InteractiveContext.hxx>
 #include <AIS_Shape.hxx>
@@ -44,10 +44,8 @@ struct NativeOccView::Impl
 	Handle( AIS_InteractiveContext ) context;
 	std::vector<Handle( AIS_Shape )> shapes;
 
-	std::vector<RobotPartDef> partDefs;
 	std::vector<TopoDS_Shape> originalShapes;
-	std::vector<std::pair<int, int>> axisToPartMap;
-	std::vector<double> jointAngles;
+	OccBridge::RobotKinematics kin;
 
 	Handle( AIS_Trihedron ) tcpTrihedron;
 	gp_Trsf tcpTrsf;
@@ -158,7 +156,8 @@ bool NativeOccView::loadStep( const wchar_t* filePath, bool append )
 
 bool NativeOccView::beginRobotArm( const RobotPartDef* parts, int partCount,
 								   const int* axisToPartMap, int mapCount )
-// Clears the scene and stores part definitions, axis mapping, and joint angles
+// Clears the scene and configures the kinematics solver with the part definitions and
+// axis-to-part mapping. RobotKinematics owns the part list and joint angles from here on.
 {
 	if( m_impl->context.IsNull() ) {
 		return false;
@@ -166,27 +165,29 @@ bool NativeOccView::beginRobotArm( const RobotPartDef* parts, int partCount,
 
 	clearScene();
 
-	m_impl->partDefs.assign( parts, parts + partCount );
-	m_impl->axisToPartMap.clear();
+	std::vector<RobotPartDef> partVec( parts, parts + partCount );
+	std::vector<std::pair<int, int>> axisMap;
+	axisMap.reserve( mapCount / 2 );
 	for( int i = 0; i < mapCount; i += 2 ) {
-		m_impl->axisToPartMap.emplace_back( axisToPartMap[ i ], axisToPartMap[ i + 1 ] );
+		axisMap.emplace_back( axisToPartMap[ i ], axisToPartMap[ i + 1 ] );
 	}
-	m_impl->jointAngles.assign( 6, 0.0 );
+	m_impl->kin.configure( std::move( partVec ), std::move( axisMap ) );
 	return true;
 }
 
 bool NativeOccView::loadRobotPart( int index )
 // Reads one STEP file, creates its AIS_Shape with color, and adds it to the context
 {
-	if( index < 0 || index >= static_cast<int>( m_impl->partDefs.size() ) ) {
+	const auto& parts = m_impl->kin.parts();
+	if( index < 0 || index >= static_cast<int>( parts.size() ) ) {
 		return false;
 	}
 
-	const auto& part = m_impl->partDefs[ index ];
+	const auto& part = parts[ index ];
 	const std::string utf8Path = Utility::wideToUtf8( part.filePath.c_str() );
 
 	// On read failure, push empty placeholders so that vector indices remain in
-	// lock-step with partDefs. updateRobotTransforms() then skips null entries.
+	// lock-step with kin.parts(). updateRobotTransforms() then skips null entries.
 	STEPControl_Reader reader;
 	const IFSelect_ReturnStatus status = reader.ReadFile( utf8Path.c_str() );
 	if( status != IFSelect_RetDone ) {
@@ -225,7 +226,7 @@ void NativeOccView::endRobotArm( void )
 {
 	// Build a TCP (Tool Center Point) trihedron that will be re-positioned by
 	// updateRobotTransforms() to follow the last DH frame in real time.
-	if( !m_impl->context.IsNull() && !m_impl->partDefs.empty() ) {
+	if( !m_impl->context.IsNull() && !m_impl->kin.parts().empty() ) {
 		Handle( Geom_Axis2Placement ) axis = new Geom_Axis2Placement(
 			gp_Pnt( 0, 0, 0 ), gp_Dir( 0, 0, 1 ), gp_Dir( 1, 0, 0 ) );
 		m_impl->tcpTrihedron = new AIS_Trihedron( axis );
@@ -240,83 +241,39 @@ void NativeOccView::endRobotArm( void )
 }
 
 void NativeOccView::setJointAngle( int axisIndex, double angleDeg )
-// Updates the given axis angle and triggers a full DH cumulative transform recalculation
+// Forwards the joint update to the kinematics solver, then re-applies transforms.
 {
-	if( axisIndex < 0 || axisIndex >= 6 || m_impl->jointAngles.size() != 6 ) {
-		return;
-	}
-
-	m_impl->jointAngles[ axisIndex ] = angleDeg;
+	m_impl->kin.setJointAngle( axisIndex, angleDeg );
 	updateRobotTransforms();
 }
 
 void NativeOccView::updateRobotTransforms( void )
-// Applies the cumulative DH transform multiplied by the offset transform to each part
-// via SetLocalTransformation, updating positions in-place
+// Asks RobotKinematics for the cumulative DH chain and applies each part's final
+// transform (DH * offset) to its AIS_Shape via SetLocalTransformation. Also re-positions
+// the TCP trihedron and caches the TCP frame for getTcpPose().
 {
-	if( m_impl->context.IsNull() || m_impl->partDefs.empty() ) {
+	if( m_impl->context.IsNull() || m_impl->kin.parts().empty() ) {
 		return;
 	}
 
-	const int n = static_cast<int>( m_impl->partDefs.size() );
+	const auto& cumulative = m_impl->kin.computeCumulative();
+	const int n = static_cast<int>( cumulative.size() );
 
-	// Step 1: Spread joint angles (axisToPartMap maps axis 1..6 -> part index)
-	//         onto the corresponding part's theta delta. Parts that are not
-	//         driven by a joint keep a zero delta.
-	std::vector<double> partJointDelta( n, 0.0 );
-	for( const auto& mapping : m_impl->axisToPartMap ) {
-		const int axisIdx = mapping.first;
-		const int partIdx = mapping.second;
-		if( axisIdx >= 1 && axisIdx <= 6 && partIdx >= 0 && partIdx < n ) {
-			partJointDelta[ partIdx ] = m_impl->jointAngles[ axisIdx - 1 ];
-		}
-	}
-
-	// Step 2: Walk the kinematic tree in array order (parents must precede children)
-	//         and accumulate dhCumulative[i] = dhCumulative[parent] * dhLocal[i].
-	//         Root parts (parentIdx < 0) use dhLocal directly as the world frame.
-	std::vector<gp_Trsf> dhCumulative( n );
 	for( int i = 0; i < n; ++i ) {
-		const double theta = m_impl->partDefs[ i ].dhTheta + partJointDelta[ i ];
-		gp_Trsf dhLocal = OccBridge::Transform::makeDh(
-			m_impl->partDefs[ i ].dhA, m_impl->partDefs[ i ].dhAlpha,
-			m_impl->partDefs[ i ].dhD, theta );
-
-		const int parent = m_impl->partDefs[ i ].parentIdx;
-		if( parent >= 0 && parent < n ) {
-			dhCumulative[ i ] = dhCumulative[ parent ];
-			dhCumulative[ i ].Multiply( dhLocal );
-		} else {
-			dhCumulative[ i ] = dhLocal;
-		}
-	}
-
-	// Step 3: Final transform = dhCumulative * offset.
-	//         The offset brings the CAD shape's authored frame into the DH joint
-	//         frame, then dhCumulative places the joint frame in world space.
-	for( int i = 0; i < n; ++i ) {
-		if( m_impl->shapes[ i ].IsNull() ) {
+		if( i >= static_cast<int>( m_impl->shapes.size() ) || m_impl->shapes[ i ].IsNull() ) {
 			continue;
 		}
-
-		gp_Trsf offsetTrsf = OccBridge::Transform::makeOffset(
-			m_impl->partDefs[ i ].offset[ 0 ], m_impl->partDefs[ i ].offset[ 1 ], m_impl->partDefs[ i ].offset[ 2 ],
-			m_impl->partDefs[ i ].offset[ 3 ], m_impl->partDefs[ i ].offset[ 4 ], m_impl->partDefs[ i ].offset[ 5 ] );
-
-		gp_Trsf finalTrsf = dhCumulative[ i ];
-		finalTrsf.Multiply( offsetTrsf );
-
 		// SetLocalTransformation updates in-place without re-tessellating geometry,
 		// so it is cheap enough to call on every slider change.
-		m_impl->shapes[ i ]->SetLocalTransformation( finalTrsf );
+		m_impl->shapes[ i ]->SetLocalTransformation( m_impl->kin.computeFinal( i ) );
 	}
 
-	// Step 4: Place TCP trihedron at the last DH frame (assumed end-effector).
 	if( !m_impl->tcpTrihedron.IsNull() ) {
-		const int lastIdx = n - 1;
-		m_impl->tcpTrihedron->SetLocalTransformation( dhCumulative[ lastIdx ] );
-		m_impl->tcpTrsf = dhCumulative[ lastIdx ];
-		m_impl->hasTcp = true;
+		if( auto tcp = m_impl->kin.tcpFrame() ) {
+			m_impl->tcpTrihedron->SetLocalTransformation( *tcp );
+			m_impl->tcpTrsf = *tcp;
+			m_impl->hasTcp = true;
+		}
 	}
 
 	m_impl->context->UpdateCurrentViewer();
@@ -336,9 +293,7 @@ void NativeOccView::clearScene( void )
 	}
 	m_impl->shapes.clear();
 	m_impl->originalShapes.clear();
-	m_impl->partDefs.clear();
-	m_impl->axisToPartMap.clear();
-	m_impl->jointAngles.clear();
+	m_impl->kin.configure( {}, {} );
 	if( !m_impl->tcpTrihedron.IsNull() ) {
 		m_impl->context->Remove( m_impl->tcpTrihedron, Standard_False );
 		m_impl->tcpTrihedron.Nullify();
