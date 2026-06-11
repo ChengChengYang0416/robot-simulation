@@ -1,20 +1,17 @@
 #include <windows.h>
 #include <cstdint>
-#include <string>
 #include <vector>
 #include "NativeOccView.h"
 #include "../Kinematics/RobotKinematics.h"
 #include "../Kinematics/RobotPartDef.h"
 #include "../Kinematics/TcpPoseSolver.h"
-#include "../Utility/StringUtil.h"
+#include "../Scene/StepLoader.h"
 #include <AIS_InteractiveContext.hxx>
 #include <AIS_Shape.hxx>
 #include <AIS_Trihedron.hxx>
 #include <Aspect_DisplayConnection.hxx>
 #include <Geom_Axis2Placement.hxx>
 #include <OpenGl_GraphicDriver.hxx>
-#include <STEPControl_Reader.hxx>
-#include <IFSelect_ReturnStatus.hxx>
 #include <TopoDS_Shape.hxx>
 #include <V3d_View.hxx>
 #include <V3d_Viewer.hxx>
@@ -118,7 +115,7 @@ void NativeOccView::redraw( void )
 }
 
 bool NativeOccView::loadStep( const wchar_t* filePath, bool append )
-// Converts the path to UTF-8 and parses the geometry using STEPControl_Reader
+// Reads a STEP file via Scene::StepLoader and displays the merged root shape.
 {
 	if( m_impl->context.IsNull() ) {
 		return false;
@@ -128,25 +125,13 @@ bool NativeOccView::loadStep( const wchar_t* filePath, bool append )
 		clearScene();
 	}
 
-	const std::string utf8Path = Utility::wideToUtf8( filePath );
-
-	STEPControl_Reader reader;
-	const IFSelect_ReturnStatus status = reader.ReadFile( utf8Path.c_str() );
-	if( status != IFSelect_RetDone ) {
+	Scene::StepLoader loader;
+	auto shape = loader.read( filePath );
+	if( !shape ) {
 		return false;
 	}
 
-	const Standard_Integer roots = reader.TransferRoots();
-	if( roots <= 0 ) {
-		return false;
-	}
-
-	TopoDS_Shape shape = reader.OneShape();
-	if( shape.IsNull() ) {
-		return false;
-	}
-
-	Handle( AIS_Shape ) aisShape = new AIS_Shape( shape );
+	Handle( AIS_Shape ) aisShape = new AIS_Shape( *shape );
 	m_impl->context->Display( aisShape, Standard_False );
 	m_impl->context->SetDisplayMode( aisShape, 1, Standard_False );
 	m_impl->shapes.push_back( aisShape );
@@ -176,7 +161,8 @@ bool NativeOccView::beginRobotArm( const RobotPartDef* parts, int partCount,
 }
 
 bool NativeOccView::loadRobotPart( int index )
-// Reads one STEP file, creates its AIS_Shape with color, and adds it to the context
+// Reads one STEP file via Scene::StepLoader, creates its AIS_Shape with color,
+// and adds it to the context.
 {
 	const auto& parts = m_impl->kin.parts();
 	if( index < 0 || index >= static_cast<int>( parts.size() ) ) {
@@ -184,32 +170,23 @@ bool NativeOccView::loadRobotPart( int index )
 	}
 
 	const auto& part = parts[ index ];
-	const std::string utf8Path = Utility::wideToUtf8( part.filePath.c_str() );
 
 	// On read failure, push empty placeholders so that vector indices remain in
 	// lock-step with kin.parts(). updateRobotTransforms() then skips null entries.
-	STEPControl_Reader reader;
-	const IFSelect_ReturnStatus status = reader.ReadFile( utf8Path.c_str() );
-	if( status != IFSelect_RetDone ) {
+	Scene::StepLoader loader;
+	auto shape = loader.read( part.filePath );
+	if( !shape ) {
 		m_impl->originalShapes.emplace_back();
 		m_impl->shapes.push_back( Handle( AIS_Shape )() );
 		return false;
 	}
 
-	const Standard_Integer roots = reader.TransferRoots();
-	if( roots <= 0 ) {
-		m_impl->originalShapes.emplace_back();
-		m_impl->shapes.push_back( Handle( AIS_Shape )() );
-		return false;
-	}
-
-	TopoDS_Shape shape = reader.OneShape();
-	m_impl->originalShapes.push_back( shape );
+	m_impl->originalShapes.push_back( *shape );
 
 	// Display as shaded (mode 1). All Display/SetColor calls pass Standard_False
 	// so the viewer is not redrawn after each part; endRobotArm() does one final
 	// UpdateCurrentViewer for the whole batch.
-	Handle( AIS_Shape ) aisShape = new AIS_Shape( shape );
+	Handle( AIS_Shape ) aisShape = new AIS_Shape( *shape );
 	const Quantity_Color qColor(
 		part.colorR / 255.0,
 		part.colorG / 255.0,

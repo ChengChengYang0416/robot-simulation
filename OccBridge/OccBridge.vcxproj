@@ -114,6 +114,9 @@
     <ProjectReference Include="..\Kinematics\Kinematics.vcxproj">
       <Project>{2B6E5A1E-1234-4ABC-9D01-1A2B3C4D5E62}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\Scene\Scene.vcxproj">
+      <Project>{2B6E5A1E-1234-4ABC-9D01-1A2B3C4D5E63}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\Utility\Utility.vcxproj">
       <Project>{2B6E5A1E-1234-4ABC-9D01-1A2B3C4D5E61}</Project>
     </ProjectReference>
