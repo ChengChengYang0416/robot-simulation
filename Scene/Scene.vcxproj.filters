@@ -11,11 +11,17 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="SceneRepository.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="StepLoader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="SceneRepository.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="StepLoader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>

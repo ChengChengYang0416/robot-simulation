@@ -70,9 +70,11 @@
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="SceneRepository.h" />
     <ClInclude Include="StepLoader.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="SceneRepository.cpp" />
     <ClCompile Include="StepLoader.cpp" />
   </ItemGroup>
   <ItemGroup>

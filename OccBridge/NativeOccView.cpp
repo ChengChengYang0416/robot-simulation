@@ -5,21 +5,16 @@
 #include "../Kinematics/RobotKinematics.h"
 #include "../Kinematics/RobotPartDef.h"
 #include "../Kinematics/TcpPoseSolver.h"
+#include "../Scene/SceneRepository.h"
 #include "../Scene/StepLoader.h"
 #include <AIS_InteractiveContext.hxx>
-#include <AIS_Shape.hxx>
-#include <AIS_Trihedron.hxx>
 #include <Aspect_DisplayConnection.hxx>
-#include <Geom_Axis2Placement.hxx>
 #include <OpenGl_GraphicDriver.hxx>
-#include <TopoDS_Shape.hxx>
 #include <V3d_View.hxx>
 #include <V3d_Viewer.hxx>
 #include <WNT_Window.hxx>
 #include <gp_Trsf.hxx>
 #include <Quantity_Color.hxx>
-#include <gp_Pnt.hxx>
-#include <gp_Dir.hxx>
 
 enum class MouseButton : int {
 	Left   = 1048576,
@@ -39,14 +34,14 @@ struct NativeOccView::Impl
 	Handle( V3d_Viewer ) viewer;
 	Handle( V3d_View ) view;
 	Handle( AIS_InteractiveContext ) context;
-	std::vector<Handle( AIS_Shape )> shapes;
 
-	std::vector<TopoDS_Shape> originalShapes;
+	Scene::SceneRepository repo;
 	OccBridge::RobotKinematics kin;
 
-	Handle( AIS_Trihedron ) tcpTrihedron;
-	gp_Trsf tcpTrsf;
-	bool hasTcp = false;
+	// Maps part index -> SceneRepository slot id; -1 when the STEP file failed to
+	// load. Replaces the legacy convention of pushing null AIS_Shape placeholders
+	// to keep shapes vector in lock-step with part definitions.
+	std::vector<int> partToSlot;
 };
 
 static constexpr double kZoomFactor = 1.15;
@@ -78,6 +73,7 @@ void NativeOccView::initialize( HWND hwnd )
 	m_impl->viewer->SetLightOn();
 	m_impl->context = new AIS_InteractiveContext( m_impl->viewer );
 	m_impl->view = m_impl->viewer->CreateView();
+	m_impl->repo.attach( m_impl->context );
 
 	// Bind the OCCT view to the host HWND. WNT_Window must be mapped before the
 	// first redraw, otherwise OpenGL has no surface to draw onto.
@@ -131,10 +127,10 @@ bool NativeOccView::loadStep( const wchar_t* filePath, bool append )
 		return false;
 	}
 
-	Handle( AIS_Shape ) aisShape = new AIS_Shape( *shape );
-	m_impl->context->Display( aisShape, Standard_False );
-	m_impl->context->SetDisplayMode( aisShape, 1, Standard_False );
-	m_impl->shapes.push_back( aisShape );
+	const auto slot = m_impl->repo.addShape( *shape );
+	if( !slot.isValid ) {
+		return false;
+	}
 	fitAll();
 	return true;
 }
@@ -157,12 +153,14 @@ bool NativeOccView::beginRobotArm( const RobotPartDef* parts, int partCount,
 		axisMap.emplace_back( axisToPartMap[ i ], axisToPartMap[ i + 1 ] );
 	}
 	m_impl->kin.configure( std::move( partVec ), std::move( axisMap ) );
+	m_impl->partToSlot.assign( partCount, -1 );
 	return true;
 }
 
 bool NativeOccView::loadRobotPart( int index )
-// Reads one STEP file via Scene::StepLoader, creates its AIS_Shape with color,
-// and adds it to the context.
+// Reads one STEP file via Scene::StepLoader and registers the resulting shape with
+// SceneRepository. On failure, partToSlot[index] stays at -1 and updateRobotTransforms()
+// simply skips that part (no AIS placeholder needed).
 {
 	const auto& parts = m_impl->kin.parts();
 	if( index < 0 || index >= static_cast<int>( parts.size() ) ) {
@@ -171,47 +169,34 @@ bool NativeOccView::loadRobotPart( int index )
 
 	const auto& part = parts[ index ];
 
-	// On read failure, push empty placeholders so that vector indices remain in
-	// lock-step with kin.parts(). updateRobotTransforms() then skips null entries.
 	Scene::StepLoader loader;
 	auto shape = loader.read( part.filePath );
 	if( !shape ) {
-		m_impl->originalShapes.emplace_back();
-		m_impl->shapes.push_back( Handle( AIS_Shape )() );
 		return false;
 	}
 
-	m_impl->originalShapes.push_back( *shape );
-
-	// Display as shaded (mode 1). All Display/SetColor calls pass Standard_False
+	// Display as shaded (mode 1). SceneRepository batches the call with Standard_False
 	// so the viewer is not redrawn after each part; endRobotArm() does one final
-	// UpdateCurrentViewer for the whole batch.
-	Handle( AIS_Shape ) aisShape = new AIS_Shape( *shape );
+	// updateViewer() for the whole batch.
 	const Quantity_Color qColor(
 		part.colorR / 255.0,
 		part.colorG / 255.0,
 		part.colorB / 255.0,
 		Quantity_TOC_sRGB );
-	m_impl->context->Display( aisShape, 1, -1, Standard_False );
-	m_impl->context->SetColor( aisShape, qColor, Standard_False );
-	m_impl->shapes.push_back( aisShape );
+	const auto slot = m_impl->repo.addColoredShape( *shape, qColor );
+	if( !slot.isValid ) {
+		return false;
+	}
+	m_impl->partToSlot[ index ] = slot.slotId;
 	return true;
 }
 
 void NativeOccView::endRobotArm( void )
-// Computes cumulative DH transforms, creates the TCP trihedron, and fits the camera
+// Asks SceneRepository to create the TCP trihedron, then runs the first transform pass
+// and fits the camera. The trihedron's pose is set by updateRobotTransforms().
 {
-	// Build a TCP (Tool Center Point) trihedron that will be re-positioned by
-	// updateRobotTransforms() to follow the last DH frame in real time.
-	if( !m_impl->context.IsNull() && !m_impl->kin.parts().empty() ) {
-		Handle( Geom_Axis2Placement ) axis = new Geom_Axis2Placement(
-			gp_Pnt( 0, 0, 0 ), gp_Dir( 0, 0, 1 ), gp_Dir( 1, 0, 0 ) );
-		m_impl->tcpTrihedron = new AIS_Trihedron( axis );
-		m_impl->tcpTrihedron->SetSize( 80.0 );
-		m_impl->tcpTrihedron->SetDatumPartColor( Prs3d_DatumParts_XAxis, Quantity_Color( Quantity_NOC_BLUE ) );
-		m_impl->tcpTrihedron->SetDatumPartColor( Prs3d_DatumParts_YAxis, Quantity_Color( Quantity_NOC_GREEN ) );
-		m_impl->tcpTrihedron->SetDatumPartColor( Prs3d_DatumParts_ZAxis, Quantity_Color( Quantity_NOC_RED ) );
-		m_impl->context->Display( m_impl->tcpTrihedron, Standard_False );
+	if( !m_impl->kin.parts().empty() ) {
+		m_impl->repo.ensureTcpTrihedron();
 	}
 	updateRobotTransforms();
 	fitAll();
@@ -225,11 +210,11 @@ void NativeOccView::setJointAngle( int axisIndex, double angleDeg )
 }
 
 void NativeOccView::updateRobotTransforms( void )
-// Asks RobotKinematics for the cumulative DH chain and applies each part's final
-// transform (DH * offset) to its AIS_Shape via SetLocalTransformation. Also re-positions
-// the TCP trihedron and caches the TCP frame for getTcpPose().
+// Asks RobotKinematics for the cumulative DH chain, then pushes each part's final
+// transform (DH * offset) into SceneRepository via the partToSlot map. The TCP
+// trihedron pose is updated through the repository as well.
 {
-	if( m_impl->context.IsNull() || m_impl->kin.parts().empty() ) {
+	if( m_impl->kin.parts().empty() ) {
 		return;
 	}
 
@@ -237,46 +222,29 @@ void NativeOccView::updateRobotTransforms( void )
 	const int n = static_cast<int>( cumulative.size() );
 
 	for( int i = 0; i < n; ++i ) {
-		if( i >= static_cast<int>( m_impl->shapes.size() ) || m_impl->shapes[ i ].IsNull() ) {
+		const int slot = ( i < static_cast<int>( m_impl->partToSlot.size() ) )
+			? m_impl->partToSlot[ i ] : -1;
+		if( slot < 0 ) {
 			continue;
 		}
-		// SetLocalTransformation updates in-place without re-tessellating geometry,
-		// so it is cheap enough to call on every slider change.
-		m_impl->shapes[ i ]->SetLocalTransformation( m_impl->kin.computeFinal( i ) );
+		m_impl->repo.setTransform( slot, m_impl->kin.computeFinal( i ) );
 	}
 
-	if( !m_impl->tcpTrihedron.IsNull() ) {
-		if( auto tcp = m_impl->kin.tcpFrame() ) {
-			m_impl->tcpTrihedron->SetLocalTransformation( *tcp );
-			m_impl->tcpTrsf = *tcp;
-			m_impl->hasTcp = true;
-		}
+	if( auto tcp = m_impl->kin.tcpFrame() ) {
+		m_impl->repo.setTcpTransform( *tcp );
 	}
 
-	m_impl->context->UpdateCurrentViewer();
+	m_impl->repo.updateViewer();
 }
 
 void NativeOccView::clearScene( void )
-// Removes all AIS objects from the Context and clears all internal state containers
+// Asks the repository to remove all displayed objects, then resets kinematics and
+// the part-to-slot map. The repository keeps its context attachment for reuse.
 {
-	if( m_impl->context.IsNull() ) {
-		return;
-	}
-
-	for( const auto& shape : m_impl->shapes ) {
-		if( !shape.IsNull() ) {
-			m_impl->context->Remove( shape, Standard_False );
-		}
-	}
-	m_impl->shapes.clear();
-	m_impl->originalShapes.clear();
+	m_impl->repo.clear();
 	m_impl->kin.configure( {}, {} );
-	if( !m_impl->tcpTrihedron.IsNull() ) {
-		m_impl->context->Remove( m_impl->tcpTrihedron, Standard_False );
-		m_impl->tcpTrihedron.Nullify();
-	}
-	m_impl->hasTcp = false;
-	m_impl->context->UpdateCurrentViewer();
+	m_impl->partToSlot.clear();
+	m_impl->repo.updateViewer();
 	redraw();
 }
 
@@ -295,11 +263,16 @@ bool NativeOccView::getTcpPose( double out[6] ) const
 // Delegates the matrix decomposition to OccBridge::solveTcpPose so the Euler
 // convention stays in one place. Returns false if no robot is loaded.
 {
-	if( out == nullptr || !m_impl->hasTcp ) {
+	if( out == nullptr ) {
 		return false;
 	}
 
-	const auto pose = OccBridge::solveTcpPose( m_impl->tcpTrsf );
+	auto tcp = m_impl->repo.tcpFrame();
+	if( !tcp ) {
+		return false;
+	}
+
+	const auto pose = OccBridge::solveTcpPose( *tcp );
 	for( int i = 0; i < 6; ++i ) {
 		out[ i ] = pose[ i ];
 	}
