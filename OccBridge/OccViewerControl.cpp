@@ -1,7 +1,7 @@
 #include <msclr/marshal_cppstd.h>
 #include "OccViewerControl.h"
 #include "NativeOccView.h"
-#include "RobotPartDef.h"
+#include "../Kinematics/RobotPartDef.h"
 #include <vector>
 #include <string>
 

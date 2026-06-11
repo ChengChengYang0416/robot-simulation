@@ -17,9 +17,6 @@
     <ClInclude Include="NativeOccView.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="RobotPartDef.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="OccViewerControl.cpp">

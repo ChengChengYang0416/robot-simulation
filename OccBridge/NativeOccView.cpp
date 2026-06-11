@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 #include "NativeOccView.h"
-#include "RobotPartDef.h"
+#include "../Kinematics/RobotPartDef.h"
 #include "../Kinematics/TcpPoseSolver.h"
 #include "../Kinematics/TransformBuilder.h"
 #include "../Utility/StringUtil.h"

@@ -102,7 +102,6 @@
   <ItemGroup>
     <ClInclude Include="OccViewerControl.h" />
     <ClInclude Include="NativeOccView.h" />
-    <ClInclude Include="RobotPartDef.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="OccViewerControl.cpp" />

@@ -70,10 +70,13 @@
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="RobotKinematics.h" />
+    <ClInclude Include="RobotPartDef.h" />
     <ClInclude Include="TcpPoseSolver.h" />
     <ClInclude Include="TransformBuilder.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="RobotKinematics.cpp" />
     <ClCompile Include="TcpPoseSolver.cpp" />
     <ClCompile Include="TransformBuilder.cpp" />
   </ItemGroup>
