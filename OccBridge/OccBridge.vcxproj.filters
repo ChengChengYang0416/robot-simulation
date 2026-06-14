@@ -17,6 +17,9 @@
     <ClInclude Include="NativeOccView.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="IRobotScene.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="OccViewerControl.cpp">
