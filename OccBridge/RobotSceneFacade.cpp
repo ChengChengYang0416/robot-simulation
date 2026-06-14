@@ -1,7 +1,7 @@
 #include <windows.h>
 #include <cstdint>
 #include <vector>
-#include "NativeOccView.h"
+#include "RobotSceneFacade.h"
 #include "../Interaction/CameraController.h"
 #include "../Interaction/MouseInteractor.h"
 #include "../Kinematics/RobotKinematics.h"
@@ -12,7 +12,9 @@
 #include "../Viewer/ViewportContext.h"
 #include <Quantity_Color.hxx>
 
-struct NativeOccView::Impl
+namespace OccBridge {
+
+struct RobotSceneFacade::Impl
 {
 	Viewer::ViewportContext viewport;
 
@@ -27,19 +29,19 @@ struct NativeOccView::Impl
 	std::vector<int> partToSlot;
 };
 
-NativeOccView::NativeOccView( void )
+RobotSceneFacade::RobotSceneFacade()
 	: m_impl( new Impl() )
 // Allocates the PIMPL object; all OCCT members are default-initialized here
 {
 }
 
-NativeOccView::~NativeOccView( void )
+RobotSceneFacade::~RobotSceneFacade()
 // Releases the PIMPL object; OCCT Handles decrement their ref-count in Impl's destructor
 {
 	delete m_impl;
 }
 
-void NativeOccView::initialize( HWND hwnd )
+void RobotSceneFacade::initialize( HWND hwnd )
 // Boots the OCCT rendering stack via ViewportContext, then wires every helper
 // (scene repo, mouse, camera) to the resulting view / context handles.
 {
@@ -49,19 +51,19 @@ void NativeOccView::initialize( HWND hwnd )
 	m_impl->camera.attach( m_impl->viewport.view() );
 }
 
-void NativeOccView::resize( int width, int height )
+void RobotSceneFacade::resize( int width, int height )
 // Forwards to ViewportContext; OCCT re-queries WNT_Window for the actual size.
 {
 	m_impl->viewport.resize( width, height );
 }
 
-void NativeOccView::redraw( void )
+void RobotSceneFacade::redraw()
 // Forwards to ViewportContext for a fast scene-only redraw.
 {
 	m_impl->viewport.redraw();
 }
 
-bool NativeOccView::loadStep( const wchar_t* filePath, bool append )
+bool RobotSceneFacade::loadStep( const wchar_t* filePath, bool append )
 // Reads a STEP file via Scene::StepLoader and displays the merged root shape.
 {
 	if( m_impl->viewport.context().IsNull() ) {
@@ -86,8 +88,8 @@ bool NativeOccView::loadStep( const wchar_t* filePath, bool append )
 	return true;
 }
 
-bool NativeOccView::beginRobotArm( const RobotPartDef* parts, int partCount,
-								   const int* axisToPartMap, int mapCount )
+bool RobotSceneFacade::beginRobotArm( const RobotPartDef* parts, int partCount,
+									  const int* axisToPartMap, int mapCount )
 // Clears the scene and configures the kinematics solver with the part definitions and
 // axis-to-part mapping. RobotKinematics owns the part list and joint angles from here on.
 {
@@ -108,7 +110,7 @@ bool NativeOccView::beginRobotArm( const RobotPartDef* parts, int partCount,
 	return true;
 }
 
-bool NativeOccView::loadRobotPart( int index )
+bool RobotSceneFacade::loadRobotPart( int index )
 // Reads one STEP file via Scene::StepLoader and registers the resulting shape with
 // SceneRepository. On failure, partToSlot[index] stays at -1 and updateRobotTransforms()
 // simply skips that part (no AIS placeholder needed).
@@ -142,7 +144,7 @@ bool NativeOccView::loadRobotPart( int index )
 	return true;
 }
 
-void NativeOccView::endRobotArm( void )
+void RobotSceneFacade::endRobotArm()
 // Asks SceneRepository to create the TCP trihedron, then runs the first transform pass
 // and fits the camera. The trihedron's pose is set by updateRobotTransforms().
 {
@@ -153,14 +155,14 @@ void NativeOccView::endRobotArm( void )
 	fitAll();
 }
 
-void NativeOccView::setJointAngle( int axisIndex, double angleDeg )
+void RobotSceneFacade::setJointAngle( int axisIndex, double angleDeg )
 // Forwards the joint update to the kinematics solver, then re-applies transforms.
 {
 	m_impl->kin.setJointAngle( axisIndex, angleDeg );
 	updateRobotTransforms();
 }
 
-void NativeOccView::updateRobotTransforms( void )
+void RobotSceneFacade::updateRobotTransforms()
 // Asks RobotKinematics for the cumulative DH chain, then pushes each part's final
 // transform (DH * offset) into SceneRepository via the partToSlot map. The TCP
 // trihedron pose is updated through the repository as well.
@@ -188,7 +190,7 @@ void NativeOccView::updateRobotTransforms( void )
 	m_impl->repo.updateViewer();
 }
 
-void NativeOccView::clearScene( void )
+void RobotSceneFacade::clearScene()
 // Asks the repository to remove all displayed objects, then resets kinematics and
 // the part-to-slot map. The repository keeps its context attachment for reuse.
 {
@@ -199,13 +201,13 @@ void NativeOccView::clearScene( void )
 	redraw();
 }
 
-void NativeOccView::fitAll( void )
+void RobotSceneFacade::fitAll()
 // Delegates to CameraController::fitAll (FitAll + ZFitAll + Redraw).
 {
 	m_impl->camera.fitAll();
 }
 
-bool NativeOccView::getTcpPose( double out[6] ) const
+bool RobotSceneFacade::getTcpPose( double out[ 6 ] ) const
 // Returns the cached TCP pose as [x, y, z, rx, ry, rz] in mm and degrees.
 // Delegates the matrix decomposition to OccBridge::solveTcpPose so the Euler
 // convention stays in one place. Returns false if no robot is loaded.
@@ -226,38 +228,40 @@ bool NativeOccView::getTcpPose( double out[6] ) const
 	return true;
 }
 
-void NativeOccView::setViewIso( void )
+void RobotSceneFacade::setViewIso()
 // Delegates to CameraController::setViewIso (isometric projection + fitAll).
 {
 	m_impl->camera.setViewIso();
 }
 
-void NativeOccView::setViewTop( void )
+void RobotSceneFacade::setViewTop()
 // Delegates to CameraController::setViewTop (top-down projection + fitAll).
 {
 	m_impl->camera.setViewTop();
 }
 
-void NativeOccView::onMouseDown( int x, int y, int button )
+void RobotSceneFacade::onMouseDown( int x, int y, int button )
 // Forwards to MouseInteractor, which owns the rotate / pan state machine.
 {
 	m_impl->mouse.onMouseDown( x, y, button );
 }
 
-void NativeOccView::onMouseMove( int x, int y, int buttonMask )
+void RobotSceneFacade::onMouseMove( int x, int y, int buttonMask )
 // Forwards to MouseInteractor; with no active drag it also drives hover highlight.
 {
 	m_impl->mouse.onMouseMove( x, y, buttonMask );
 }
 
-void NativeOccView::onMouseUp( void )
+void RobotSceneFacade::onMouseUp()
 // Clears the active rotate / pan flags in MouseInteractor.
 {
 	m_impl->mouse.onMouseUp();
 }
 
-void NativeOccView::onMouseWheel( int delta )
+void RobotSceneFacade::onMouseWheel( int delta )
 // Forwards to MouseInteractor::onMouseWheel for zoom-in / zoom-out.
 {
 	m_impl->mouse.onMouseWheel( delta );
 }
+
+}  // namespace OccBridge

@@ -1,6 +1,6 @@
 #include <msclr/marshal_cppstd.h>
 #include "OccViewerControl.h"
-#include "NativeOccView.h"
+#include "RobotSceneFacade.h"
 #include "../Kinematics/RobotPartDef.h"
 #include <vector>
 #include <string>
@@ -8,7 +8,7 @@
 namespace OccBridge {
 
 	OccViewerControl::OccViewerControl( void )
-		: m_pNative( new NativeOccView() ), m_bInitialized( false )
+		: m_pNative( new RobotSceneFacade() ), m_bInitialized( false )
 	// Creates the native viewer and sets default control appearance: dark background, fill parent, no double-buffering
 	{
 		// DoubleBuffered must be off: WinForms' double buffering would draw on top

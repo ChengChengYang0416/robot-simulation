@@ -1,6 +1,8 @@
 #pragma once
 
-class NativeOccView;
+namespace OccBridge {
+	class RobotSceneFacade;
+}
 
 using namespace System;
 using namespace System::Windows::Forms;
@@ -21,13 +23,13 @@ namespace OccBridge {
 	{
 	public:
 		OccViewerControl( void );
-		// Constructor; creates a NativeOccView instance and sets default control appearance
+		// Constructor; creates a RobotSceneFacade instance and sets default control appearance
 
 		~OccViewerControl( void );
 		// Destructor; delegates to the finalizer to release native resources
 
 		!OccViewerControl( void );
-		// Finalizer; deletes the NativeOccView native object
+		// Finalizer; deletes the RobotSceneFacade native object
 
 		bool LoadStep( String^ path, bool append );
 		// Loads the STEP file at the given path; clears the scene first when append is false
@@ -79,8 +81,8 @@ namespace OccBridge {
 		// Forwards mouse-wheel events to the native viewer
 
 	private:
-		NativeOccView* m_pNative;
-		// Pointer to the native OCCT viewer instance; manages the 3D scene and interactions
+		RobotSceneFacade* m_pNative;
+		// Pointer to the native OCCT scene facade; manages the 3D scene and interactions
 
 		bool m_bInitialized;
 		// Tracks whether the OCCT viewer has been initialized to prevent invalid calls

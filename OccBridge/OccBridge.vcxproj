@@ -102,11 +102,11 @@
   <ItemGroup>
     <ClInclude Include="IRobotScene.h" />
     <ClInclude Include="OccViewerControl.h" />
-    <ClInclude Include="NativeOccView.h" />
+    <ClInclude Include="RobotSceneFacade.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="OccViewerControl.cpp" />
-    <ClCompile Include="NativeOccView.cpp">
+    <ClCompile Include="RobotSceneFacade.cpp">
       <CompileAsManaged>false</CompileAsManaged>
       <ExceptionHandling>Sync</ExceptionHandling>
     </ClCompile>

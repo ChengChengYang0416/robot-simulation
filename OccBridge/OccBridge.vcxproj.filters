@@ -14,7 +14,7 @@
     <ClInclude Include="OccViewerControl.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="NativeOccView.h">
+    <ClInclude Include="RobotSceneFacade.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="IRobotScene.h">
@@ -25,7 +25,7 @@
     <ClCompile Include="OccViewerControl.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="NativeOccView.cpp">
+    <ClCompile Include="RobotSceneFacade.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
