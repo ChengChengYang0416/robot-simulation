@@ -1,6 +1,6 @@
 #include <msclr/marshal_cppstd.h>
 #include "OccViewerControl.h"
-#include "RobotSceneFacade.h"
+#include "IRobotScene.h"
 #include "../Kinematics/RobotPartDef.h"
 #include <vector>
 #include <string>
@@ -8,8 +8,9 @@
 namespace OccBridge {
 
 	OccViewerControl::OccViewerControl( void )
-		: m_pNative( new RobotSceneFacade() ), m_bInitialized( false )
-	// Creates the native viewer and sets default control appearance: dark background, fill parent, no double-buffering
+		: m_pNative( createRobotScene() ), m_bInitialized( false )
+	// Creates the native scene via the IRobotScene factory and sets default control appearance:
+	// dark background, fill parent, no double-buffering.
 	{
 		// DoubleBuffered must be off: WinForms' double buffering would draw on top
 		// of OCCT's OpenGL output and erase it. ControlStyles::Selectable lets the

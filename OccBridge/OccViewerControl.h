@@ -1,7 +1,7 @@
 #pragma once
 
 namespace OccBridge {
-	class RobotSceneFacade;
+	class IRobotScene;
 }
 
 using namespace System;
@@ -23,13 +23,13 @@ namespace OccBridge {
 	{
 	public:
 		OccViewerControl( void );
-		// Constructor; creates a RobotSceneFacade instance and sets default control appearance
+		// Constructor; creates the native scene via createRobotScene() and sets default control appearance
 
 		~OccViewerControl( void );
 		// Destructor; delegates to the finalizer to release native resources
 
 		!OccViewerControl( void );
-		// Finalizer; deletes the RobotSceneFacade native object
+		// Finalizer; deletes the IRobotScene native object
 
 		bool LoadStep( String^ path, bool append );
 		// Loads the STEP file at the given path; clears the scene first when append is false
@@ -81,8 +81,11 @@ namespace OccBridge {
 		// Forwards mouse-wheel events to the native viewer
 
 	private:
-		RobotSceneFacade* m_pNative;
-		// Pointer to the native OCCT scene facade; manages the 3D scene and interactions
+		IRobotScene* m_pNative;
+		// Pointer to the abstract scene interface; concrete instance is built by
+		// OccBridge::createRobotScene() so the managed wrapper never names the
+		// implementation directly (DIP). Future tests can inject a fake by
+		// exposing an alternate constructor that takes an IRobotScene*.
 
 		bool m_bInitialized;
 		// Tracks whether the OCCT viewer has been initialized to prevent invalid calls

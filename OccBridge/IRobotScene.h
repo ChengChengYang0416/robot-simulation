@@ -81,4 +81,11 @@ protected:
 	// resources and are exposed via std::unique_ptr<IRobotScene>.
 };
 
+[[nodiscard]] IRobotScene* createRobotScene();
+// Factory entry point that hides the concrete RobotSceneFacade from clients.
+// Caller owns the returned pointer and must `delete` it (or wrap in unique_ptr).
+// Returning a raw pointer avoids forcing <memory> into this header and keeps
+// the signature usable from C++/CLI translation units, which cannot store
+// std::unique_ptr as a managed-class member field.
+
 }  // namespace OccBridge

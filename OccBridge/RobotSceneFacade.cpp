@@ -264,4 +264,12 @@ void RobotSceneFacade::onMouseWheel( int delta )
 	m_impl->mouse.onMouseWheel( delta );
 }
 
+IRobotScene* createRobotScene()
+// Factory entry point declared in IRobotScene.h. Clients (OccViewerControl,
+// future test harnesses) never name RobotSceneFacade directly, which lets us
+// swap the implementation without touching the managed wrapper.
+{
+	return new RobotSceneFacade();
+}
+
 }  // namespace OccBridge
