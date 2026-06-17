@@ -264,6 +264,12 @@ void RobotSceneFacade::onMouseWheel( int delta )
 	m_impl->mouse.onMouseWheel( delta );
 }
 
+bool RobotSceneFacade::saveScreenshot( const wchar_t* filePath )
+// Forwards to ViewportContext, which owns the V3d_View and the framebuffer.
+{
+	return m_impl->viewport.saveScreenshot( filePath );
+}
+
 IRobotScene* createRobotScene()
 // Factory entry point declared in IRobotScene.h. Clients (OccViewerControl,
 // future test harnesses) never name RobotSceneFacade directly, which lets us

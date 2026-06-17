@@ -28,6 +28,13 @@ public:
 	void redraw();
 	// Forces an immediate View::Redraw without recalculating scene structure.
 
+	[[nodiscard]] bool saveScreenshot( const wchar_t* filePath );
+	// Dumps the current framebuffer to an image file via V3d_View::Dump. The output
+	// format is inferred from the file extension (.png / .jpg / .bmp / .tiff). The
+	// path is converted to UTF-8 because OCCT's OSD_OpenFile expects a narrow string
+	// and round-trips it through _wfopen on Windows. Returns false when the view is
+	// null, the path is null/empty, or OCCT reports a write failure.
+
 	[[nodiscard]] Handle( V3d_View ) view() const
 	{
 		return m_view;

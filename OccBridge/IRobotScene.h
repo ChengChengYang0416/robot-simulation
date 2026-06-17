@@ -71,6 +71,13 @@ public:
 	virtual void onMouseUp() = 0;
 	virtual void onMouseWheel( int delta ) = 0;
 
+	// ---- Capture ---------------------------------------------------------------
+
+	[[nodiscard]] virtual bool saveScreenshot( const wchar_t* filePath ) = 0;
+	// Saves the current view to an image file. Format is inferred from the file
+	// extension (.png recommended). Returns false on null/empty path, null view,
+	// or encoder failure.
+
 protected:
 	IRobotScene() = default;
 	IRobotScene( const IRobotScene& ) = delete;

@@ -242,6 +242,26 @@ namespace Hmi
 			_viewer.FitAllView();
 		}
 
+		private void SaveScreenshot_Executed( object sender, System.Windows.Input.ExecutedRoutedEventArgs e )
+		{
+			// Default filename includes a timestamp so rapid captures do not overwrite each other.
+			var dialog = new SaveFileDialog {
+				Title = "Save Screenshot",
+				Filter = "PNG image (*.png)|*.png|JPEG image (*.jpg)|*.jpg|BMP image (*.bmp)|*.bmp|TIFF image (*.tiff)|*.tiff",
+				FileName = "robot-" + DateTime.Now.ToString( "yyyyMMdd-HHmmss", CultureInfo.InvariantCulture ) + ".png",
+				AddExtension = true,
+			};
+			if( dialog.ShowDialog( this ) != true ) {
+				return;
+			}
+
+			if( _viewer.SaveScreenshot( dialog.FileName ) ) {
+				SetStatus( "Screenshot saved: " + dialog.FileName );
+			} else {
+				SetStatus( "Failed to save screenshot." );
+			}
+		}
+
 		private void JogBtn_Down( object sender, System.Windows.Input.MouseButtonEventArgs e )
 		{
 			if( !_robotLoaded ) {

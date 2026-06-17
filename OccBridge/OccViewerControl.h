@@ -58,6 +58,11 @@ namespace OccBridge {
 		void SetViewTop( void );
 		// Switches to a top-down view projection
 
+		bool SaveScreenshot( String^ path );
+		// Saves the current view to an image file (PNG / JPG / BMP / TIFF inferred
+		// from the path extension). Returns false when the viewer is not initialized,
+		// the path is null/empty, or the underlying encoder fails.
+
 	protected:
 		virtual void OnHandleCreated( EventArgs^ e ) override;
 		// Called once the window handle is created; initializes the OCCT viewer

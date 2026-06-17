@@ -5,10 +5,14 @@
         xmlns:wfi="clr-namespace:System.Windows.Forms.Integration;assembly=WindowsFormsIntegration"
         xmlns:ctl="clr-namespace:Hmi.Controls"
         Title="RobotSimulation" Height="700" Width="1100" MinHeight="700" MinWidth="1100">
+    <Window.CommandBindings>
+        <CommandBinding Command="ApplicationCommands.Save" Executed="SaveScreenshot_Executed"/>
+    </Window.CommandBindings>
     <DockPanel>
         <Menu DockPanel.Dock="Top">
             <MenuItem Header="_File">
                 <MenuItem Header="Import Model" Click="BtnOpenFolder_Click"/>
+                <MenuItem Header="Save Screenshot..." Command="ApplicationCommands.Save"/>
                 <MenuItem Header="Clear Scene" Click="BtnClear_Click"/>
             </MenuItem>
             <MenuItem Header="_View">

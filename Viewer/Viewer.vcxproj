@@ -77,5 +77,10 @@
   <ItemGroup>
     <ClCompile Include="ViewportContext.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Utility\Utility.vcxproj">
+      <Project>{2B6E5A1E-1234-4ABC-9D01-1A2B3C4D5E61}</Project>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

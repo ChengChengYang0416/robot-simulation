@@ -42,6 +42,8 @@ public:
 	void onMouseUp() override;
 	void onMouseWheel( int delta ) override;
 
+	[[nodiscard]] bool saveScreenshot( const wchar_t* filePath ) override;
+
 private:
 	void updateRobotTransforms();
 	// Recomputes cumulative DH transforms for every part and pushes them into the

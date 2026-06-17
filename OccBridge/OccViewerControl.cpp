@@ -201,6 +201,17 @@ namespace OccBridge {
 		}
 	}
 
+	bool OccViewerControl::SaveScreenshot( String^ path )
+	// Marshals the managed path to a native wide string and forwards to the native dumper
+	{
+		if( !m_bInitialized || path == nullptr ) {
+			return false;
+		}
+
+		std::wstring nativePath = msclr::interop::marshal_as<std::wstring>( path );
+		return m_pNative->saveScreenshot( nativePath.c_str() );
+	}
+
 	void OccViewerControl::OnMouseDown( MouseEventArgs^ e )
 	// Ensures the control has keyboard focus, then forwards mouse-down to the native viewer
 	{

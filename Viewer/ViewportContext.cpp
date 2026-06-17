@@ -1,4 +1,5 @@
 #include "ViewportContext.h"
+#include "../Utility/StringUtil.h"
 #include <Aspect_TypeOfTriedronPosition.hxx>
 #include <Quantity_Color.hxx>
 #include <V3d_TypeOfOrientation.hxx>
@@ -56,6 +57,20 @@ void ViewportContext::redraw()
 	if( !m_view.IsNull() ) {
 		m_view->Redraw();
 	}
+}
+
+bool ViewportContext::saveScreenshot( const wchar_t* filePath )
+// Forces one final Redraw so the framebuffer matches what the user sees, then
+// dumps it via V3d_View::Dump. OCCT picks the encoder (FreeImage) from the file
+// extension; PNG is lossless and the smallest reasonable default.
+{
+	if( m_view.IsNull() || filePath == nullptr || filePath[ 0 ] == L'\0' ) {
+		return false;
+	}
+
+	m_view->Redraw();
+	const std::string utf8Path = Utility::wideToUtf8( filePath );
+	return m_view->Dump( utf8Path.c_str() ) == Standard_True;
 }
 
 }  // namespace Viewer
