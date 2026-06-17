@@ -42,6 +42,20 @@ public:
 	// Read-only access to the configured part list; useful for callers that need to apply
 	// the computed transforms to external scene objects (e.g. AIS shapes).
 
+	[[nodiscard]] const std::vector<std::pair<int, int>>& axisToPartMap() const
+	{
+		return m_axisToPartMap;
+	}
+	// Read-only access to the axis-index → part-index mapping. Consumed by the IK
+	// solver to locate the joint frame of each driven axis when assembling the
+	// geometric Jacobian.
+
+	[[nodiscard]] const std::array<double, 6>& jointAnglesDeg() const
+	{
+		return m_jointAngles;
+	}
+	// Read-only access to the current joint angles in degrees, ordered by axis index 0..5.
+
 private:
 	std::vector<RobotPartDef> m_parts;
 	std::vector<std::pair<int, int>> m_axisToPartMap;
