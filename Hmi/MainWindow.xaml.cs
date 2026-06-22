@@ -442,43 +442,6 @@ namespace Hmi
 			TxtPoseC.Text = pose[ 5 ].ToString( "F3", CultureInfo.InvariantCulture );
 		}
 
-		private void BtnMoveTo_Click( object sender, RoutedEventArgs e )
-		{
-			if( !_robotLoaded ) {
-				SetStatus( "Load a robot first." );
-				return;
-			}
-
-			if( !TryReadPoseInputs( out var target ) ) {
-				SetStatus( "Invalid pose input: enter numeric XYZ (mm) and ABC (deg)." );
-				return;
-			}
-
-			var outAngles = new double[ JointCount ];
-			var status = _viewer.SolveTcpIk( target, _jointMin, _jointMax, outAngles );
-
-			switch( status ) {
-				case 0: // Converged
-					for( int i = 0; i < JointCount; i++ ) {
-						ApplyJointAngle( i, outAngles[ i ] );
-					}
-					SetStatus( "Move To: target reached." );
-					break;
-				case 1: // NoRobot
-					SetStatus( "Move To: no robot loaded." );
-					break;
-				case 2: // NotConverged
-					SetStatus( "Move To: target unreachable (IK did not converge)." );
-					MessageBox.Show( this,
-						"Inverse kinematics did not converge. The target pose may be outside the workspace or near a singularity.",
-						"Auto Mode", MessageBoxButton.OK, MessageBoxImage.Warning );
-					break;
-				default: // InvalidConfig
-					SetStatus( "Move To: invalid robot configuration." );
-					break;
-			}
-		}
-
 		private bool TryReadPoseInputs( out double[] pose )
 		{
 			pose = new double[ 6 ];
