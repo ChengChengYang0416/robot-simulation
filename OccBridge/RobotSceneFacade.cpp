@@ -4,9 +4,11 @@
 #include "RobotSceneFacade.h"
 #include "../Interaction/CameraController.h"
 #include "../Interaction/MouseInteractor.h"
+#include "../Kinematics/IkSolver.h"
 #include "../Kinematics/RobotKinematics.h"
 #include "../Kinematics/RobotPartDef.h"
 #include "../Kinematics/TcpPoseSolver.h"
+#include "../Kinematics/TransformBuilder.h"
 #include "../Scene/SceneRepository.h"
 #include "../Scene/StepLoader.h"
 #include "../Viewer/ViewportContext.h"
@@ -226,6 +228,63 @@ bool RobotSceneFacade::getTcpPose( double out[ 6 ] ) const
 		out[ i ] = pose[ i ];
 	}
 	return true;
+}
+
+int RobotSceneFacade::solveTcpIk( const double targetXyzRpy[ 6 ],
+								  const double jointMinDeg[ 6 ],
+								  const double jointMaxDeg[ 6 ],
+								  double       outAnglesDeg[ 6 ] )
+// Runs DLS IK using the kinematics solver's current joint angles as seed and writes
+// the final angles into outAnglesDeg. The scene's joint state is restored before
+// returning so the caller can decide whether to commit the solution.
+{
+	if( targetXyzRpy == nullptr || outAnglesDeg == nullptr ) {
+		return static_cast<int>( IkSolveStatus::InvalidConfig );
+	}
+	if( m_impl->kin.parts().empty() || m_impl->kin.axisToPartMap().empty() ) {
+		return static_cast<int>( IkSolveStatus::NoRobot );
+	}
+
+	// Snapshot the current joint angles so the scene can be reverted regardless of
+	// whether the IK iteration converges. solveIkDls mutates kin in place.
+	const auto seedDeg = m_impl->kin.jointAnglesDeg();
+
+	// Build the target gp_Trsf from XYZ + ZYX intrinsic Euler (same convention as
+	// solveTcpPose / makeOffset).
+	const gp_Trsf target = Transform::makeOffset(
+		targetXyzRpy[ 0 ], targetXyzRpy[ 1 ], targetXyzRpy[ 2 ],
+		targetXyzRpy[ 3 ], targetXyzRpy[ 4 ], targetXyzRpy[ 5 ] );
+
+	IkOptions opts;
+	opts.useJointLimits = ( jointMinDeg != nullptr && jointMaxDeg != nullptr );
+	if( opts.useJointLimits ) {
+		for( int i = 0; i < 6; ++i ) {
+			opts.jointMinDeg[ i ] = jointMinDeg[ i ];
+			opts.jointMaxDeg[ i ] = jointMaxDeg[ i ];
+		}
+	}
+
+	const IkResult res = solveIkDls( m_impl->kin, target, seedDeg, opts );
+
+	for( int i = 0; i < 6; ++i ) {
+		outAnglesDeg[ i ] = res.jointAnglesDeg[ i ];
+	}
+
+	// Restore the scene's joint state; caller commits via setJointAngle() on success.
+	for( int i = 0; i < 6; ++i ) {
+		m_impl->kin.setJointAngle( i, seedDeg[ i ] );
+	}
+	updateRobotTransforms();
+
+	switch( res.status ) {
+	case IkStatus::Converged:
+		return static_cast<int>( IkSolveStatus::Converged );
+	case IkStatus::MaxIterations:
+		return static_cast<int>( IkSolveStatus::NotConverged );
+	case IkStatus::InvalidConfiguration:
+	default:
+		return static_cast<int>( IkSolveStatus::InvalidConfig );
+	}
 }
 
 void RobotSceneFacade::setViewIso()

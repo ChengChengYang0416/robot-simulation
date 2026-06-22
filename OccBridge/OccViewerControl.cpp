@@ -177,6 +177,48 @@ namespace OccBridge {
 		return result;
 	}
 
+	int OccViewerControl::SolveTcpIk( cli::array<double>^ targetXyzRpy,
+									  cli::array<double>^ jointMinDeg,
+									  cli::array<double>^ jointMaxDeg,
+									  cli::array<double>^ outAnglesDeg )
+	// Marshals the managed arrays into native buffers and forwards to the native IK
+	// entry point. Validates lengths up-front so a malformed call returns InvalidConfig
+	// rather than corrupting memory.
+	{
+		const int expected = 6;
+		if( !m_bInitialized
+			|| targetXyzRpy == nullptr || targetXyzRpy->Length < expected
+			|| outAnglesDeg == nullptr || outAnglesDeg->Length < expected ) {
+			return static_cast<int>( IRobotScene::IkSolveStatus::InvalidConfig );
+		}
+
+		double tgt[ 6 ]{};
+		double lo[ 6 ]{};
+		double hi[ 6 ]{};
+		double out[ 6 ]{};
+		for( int i = 0; i < expected; ++i ) {
+			tgt[ i ] = targetXyzRpy[ i ];
+		}
+
+		const bool haveLimits = ( jointMinDeg != nullptr && jointMinDeg->Length >= expected
+								  && jointMaxDeg != nullptr && jointMaxDeg->Length >= expected );
+		if( haveLimits ) {
+			for( int i = 0; i < expected; ++i ) {
+				lo[ i ] = jointMinDeg[ i ];
+				hi[ i ] = jointMaxDeg[ i ];
+			}
+		}
+
+		const int status = m_pNative->solveTcpIk( tgt,
+												  haveLimits ? lo : nullptr,
+												  haveLimits ? hi : nullptr,
+												  out );
+		for( int i = 0; i < expected; ++i ) {
+			outAnglesDeg[ i ] = out[ i ];
+		}
+		return status;
+	}
+
 	void OccViewerControl::FitAllView( void )
 	// Forwards fit-all to the native viewer
 	{

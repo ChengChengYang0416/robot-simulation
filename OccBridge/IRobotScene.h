@@ -58,6 +58,29 @@ public:
 	// Fills out with [x, y, z, rx, ry, rz] in mm and degrees (ZYX intrinsic Euler);
 	// returns false when no robot is loaded or out is null.
 
+	enum class IkSolveStatus : int
+	{
+		Converged       = 0,
+		NoRobot         = 1,
+		NotConverged    = 2,
+		InvalidConfig   = 3,
+	};
+
+	[[nodiscard]] virtual int solveTcpIk( const double targetXyzRpy[6],
+										  const double jointMinDeg[6],
+										  const double jointMaxDeg[6],
+										  double       outAnglesDeg[6] ) = 0;
+	// Runs DLS IK for the requested TCP pose using the current joint angles as seed.
+	// Inputs:
+	//   targetXyzRpy  - [x, y, z, rx, ry, rz] in mm and degrees (ZYX intrinsic Euler,
+	//                   same convention as getTcpPose)
+	//   jointMinDeg   - per-axis lower limits in degrees (size 6)
+	//   jointMaxDeg   - per-axis upper limits in degrees (size 6)
+	//   outAnglesDeg  - filled with the solver's final joint angles (size 6)
+	// Returns IkSolveStatus cast to int. The scene's joint state is left unchanged
+	// regardless of outcome; the caller is responsible for committing the solution
+	// via setJointAngle() when it accepts the result.
+
 	// ---- Camera ----------------------------------------------------------------
 
 	virtual void fitAll() = 0;

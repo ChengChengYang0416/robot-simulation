@@ -31,6 +31,11 @@ public:
 	void setJointAngle( int axisIndex, double angleDeg ) override;
 	[[nodiscard]] bool getTcpPose( double out[ 6 ] ) const override;
 
+	[[nodiscard]] int solveTcpIk( const double targetXyzRpy[ 6 ],
+								  const double jointMinDeg[ 6 ],
+								  const double jointMaxDeg[ 6 ],
+								  double       outAnglesDeg[ 6 ] ) override;
+
 	void clearScene() override;
 
 	void fitAll() override;

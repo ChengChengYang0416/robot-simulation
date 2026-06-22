@@ -46,6 +46,16 @@ namespace OccBridge {
 		// Returns the TCP pose as [x, y, z, rx, ry, rz] in mm and degrees,
 		// or nullptr if no robot is currently loaded
 
+		int SolveTcpIk( cli::array<double>^ targetXyzRpy,
+						cli::array<double>^ jointMinDeg,
+						cli::array<double>^ jointMaxDeg,
+						cli::array<double>^ outAnglesDeg );
+		// Solves IK for the target TCP pose using the current joint angles as seed.
+		// targetXyzRpy / jointMinDeg / jointMaxDeg / outAnglesDeg must each be length 6.
+		// Returns IRobotScene::IkSolveStatus cast to int: 0 = Converged, 1 = NoRobot,
+		// 2 = NotConverged, 3 = InvalidConfig. The scene's joint state is left untouched
+		// on every outcome; the caller commits the solution via SetJointAngle when 0.
+
 		void ClearScene( void );
 		// Removes all objects from the 3D scene
 
