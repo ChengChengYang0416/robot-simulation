@@ -49,6 +49,19 @@ namespace Hmi
 		private DateTime _moveLT0;
 		private double _moveLDurationSec;
 
+		// MoveJ runtime: joint-space interpolation. One-shot IK at the start resolves the
+		// target TCP pose into joint angles; the tick then lerps each axis independently
+		// with the slowest axis pacing the total duration so all axes finish together.
+		// Skips the per-tick IK that MoveL pays, never hits Cartesian singularities, but
+		// the TCP traces an arc rather than a straight line in Cartesian space.
+		private const int MoveJTickMs = 3;
+		private const double MoveJSpeedDegPerSec = 60.0;
+		private DispatcherTimer _moveJTimer;
+		private double[] _moveJStart;
+		private double[] _moveJTarget;
+		private DateTime _moveJT0;
+		private double _moveJDurationSec;
+
 		private const string RegistryKey = @"SOFTWARE\RobotSimulation";
 		private const string RegistryValue = "LastModelFolder";
 
@@ -230,6 +243,7 @@ namespace Hmi
 		private void BtnClear_Click( object sender, RoutedEventArgs e )
 		{
 			StopMoveL( silent: true );
+			StopMoveJ( silent: true );
 			_viewer.ClearScene();
 			_robotLoaded = false;
 			ResetSliders();
@@ -378,6 +392,7 @@ namespace Hmi
 		{
 			StopJog();
 			StopMoveL( silent: true );
+			StopMoveJ( silent: true );
 			for( int i = 0; i < JointCount; i++ ) {
 				_jointAngles[ i ] = 0.0;
 				if( _robotLoaded ) {
@@ -516,8 +531,9 @@ namespace Hmi
 				return;
 			}
 
-			// Cancel any in-flight MoveL so back-to-back clicks restart cleanly.
+			// Cancel any in-flight motion so back-to-back clicks restart cleanly.
 			StopMoveL( silent: true );
+			StopMoveJ( silent: true );
 
 			_moveLStart  = new[] { current[ 0 ], current[ 1 ], current[ 2 ],
 								   current[ 3 ], current[ 4 ], current[ 5 ] };
@@ -532,13 +548,16 @@ namespace Hmi
 				_moveLTimer.Tick += MoveLTimer_Tick;
 			}
 			_moveLTimer.Start();
-			BtnStopMoveL.IsEnabled = true;
+			BtnStopMotion.IsEnabled = true;
 			SetStatus( $"MoveL: {linearDist:F1} mm / {angularDist:F1}° in {_moveLDurationSec:F2} s" );
 		}
 
-		private void BtnStopMoveL_Click( object sender, RoutedEventArgs e )
+		private void BtnStopMotion_Click( object sender, RoutedEventArgs e )
 		{
-			StopMoveL( silent: false );
+			StopMoveL( silent: true );
+			StopMoveJ( silent: true );
+			SetStatus( "Motion stopped." );
+			UpdateStopButtonState();
 		}
 
 		private void MoveLTimer_Tick( object sender, EventArgs e )
@@ -583,9 +602,7 @@ namespace Hmi
 			_moveLTimer?.Stop();
 			_moveLStart = null;
 			_moveLTarget = null;
-			if( BtnStopMoveL != null ) {
-				BtnStopMoveL.IsEnabled = false;
-			}
+			UpdateStopButtonState();
 			if( !silent ) {
 				SetStatus( "MoveL stopped." );
 			}
@@ -610,6 +627,120 @@ namespace Hmi
 			while( a >   180.0 ) a -= 360.0;
 			while( a <= -180.0 ) a += 360.0;
 			return a;
+		}
+
+		private void BtnMoveJ_Click( object sender, RoutedEventArgs e )
+		{
+			// Joint-space motion: one-shot IK at the target TCP pose resolves a joint
+			// vector, then every axis lerps from its current angle to that target with
+			// the slowest axis pacing the total duration. All axes therefore start and
+			// finish in lockstep, which is the defining MoveJ property; the TCP traces
+			// whatever curve falls out of the kinematics, not a straight line.
+			if( !_robotLoaded ) {
+				SetStatus( "Load a robot first." );
+				return;
+			}
+			if( !TryReadPoseInputs( out var target ) ) {
+				SetStatus( "Invalid pose input: enter numeric XYZ (mm) and ABC (deg)." );
+				return;
+			}
+
+			// Resolve target joints once. SolveTcpIk leaves the scene's joint state
+			// untouched, so the lerp source below is still the live current angles.
+			var targetJoints = new double[ JointCount ];
+			int status = _viewer.SolveTcpIk( target, _jointMin, _jointMax, targetJoints );
+			if( status != 0 ) {
+				if( status == 2 ) {
+					SetStatus( "MoveJ: target unreachable (IK did not converge)." );
+					MessageBox.Show( this,
+						"Inverse kinematics did not converge. The target pose may be outside the workspace or near a singularity.",
+						"Auto Mode", MessageBoxButton.OK, MessageBoxImage.Warning );
+				} else {
+					SetStatus( "MoveJ: invalid IK configuration." );
+				}
+				return;
+			}
+
+			// Slowest-axis pacing: T = max_i(|Δθ_i|) / v. A single shared speed limit is
+			// used until roadmap item 2.12 introduces per-axis velocity caps.
+			double maxDelta = 0.0;
+			for( int i = 0; i < JointCount; i++ ) {
+				double d = Math.Abs( targetJoints[ i ] - _jointAngles[ i ] );
+				if( d > maxDelta ) {
+					maxDelta = d;
+				}
+			}
+			_moveJDurationSec = maxDelta / MoveJSpeedDegPerSec;
+			if( _moveJDurationSec < 1.0e-6 ) {
+				SetStatus( "MoveJ: already at target." );
+				return;
+			}
+
+			StopMoveL( silent: true );
+			StopMoveJ( silent: true );
+
+			_moveJStart  = (double[])_jointAngles.Clone();
+			_moveJTarget = targetJoints;
+			_moveJT0 = DateTime.UtcNow;
+
+			if( _moveJTimer == null ) {
+				_moveJTimer = new DispatcherTimer( DispatcherPriority.Render ) {
+					Interval = TimeSpan.FromMilliseconds( MoveJTickMs ),
+				};
+				_moveJTimer.Tick += MoveJTimer_Tick;
+			}
+			_moveJTimer.Start();
+			UpdateStopButtonState();
+			SetStatus( $"MoveJ: max Δ {maxDelta:F1}° in {_moveJDurationSec:F2} s" );
+		}
+
+		private void MoveJTimer_Tick( object sender, EventArgs e )
+		{
+			if( !_robotLoaded || _moveJStart == null || _moveJTarget == null ) {
+				StopMoveJ( silent: true );
+				return;
+			}
+
+			double elapsed = ( DateTime.UtcNow - _moveJT0 ).TotalSeconds;
+			double t = elapsed / _moveJDurationSec;
+			bool reachedEnd = t >= 1.0;
+			if( reachedEnd ) {
+				t = 1.0;
+			}
+
+			var interp = new double[ JointCount ];
+			for( int i = 0; i < JointCount; i++ ) {
+				interp[ i ] = _moveJStart[ i ] + t * ( _moveJTarget[ i ] - _moveJStart[ i ] );
+			}
+			ApplyAllJointAngles( interp );
+
+			if( reachedEnd ) {
+				StopMoveJ( silent: true );
+				SetStatus( "MoveJ: target reached." );
+			}
+		}
+
+		private void StopMoveJ( bool silent )
+		{
+			_moveJTimer?.Stop();
+			_moveJStart = null;
+			_moveJTarget = null;
+			UpdateStopButtonState();
+			if( !silent ) {
+				SetStatus( "MoveJ stopped." );
+			}
+		}
+
+		private void UpdateStopButtonState()
+		{
+			// Enables the Stop button whenever any trajectory player is active so a single
+			// control can interrupt either MoveL or MoveJ without per-motion toggling.
+			if( BtnStopMotion == null ) {
+				return;
+			}
+			bool busy = ( _moveLTimer != null && _moveLTimer.IsEnabled )
+					 || ( _moveJTimer != null && _moveJTimer.IsEnabled );
+			BtnStopMotion.IsEnabled = busy;
 		}
 
 		private void TglDragEnable_Changed( object sender, RoutedEventArgs e )
