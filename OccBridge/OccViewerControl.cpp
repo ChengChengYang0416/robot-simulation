@@ -160,6 +160,20 @@ namespace OccBridge {
 		}
 	}
 
+	void OccViewerControl::SetJointAngles( cli::array<double>^ anglesDeg )
+	// Marshals all six joint angles in one shot to the native batch entry point so a
+	// MoveL / MoveJ tick redraws the scene only once per frame.
+	{
+		if( !m_bInitialized || anglesDeg == nullptr || anglesDeg->Length < 6 ) {
+			return;
+		}
+		double buf[ 6 ]{};
+		for( int i = 0; i < 6; ++i ) {
+			buf[ i ] = anglesDeg[ i ];
+		}
+		m_pNative->setJointAngles( buf );
+	}
+
 	cli::array<double>^ OccViewerControl::GetTcpPose( void )
 	// Retrieves the TCP pose from the native viewer and marshals it into a managed array
 	{

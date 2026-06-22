@@ -593,13 +593,14 @@ namespace Hmi
 
 		private void ApplyAllJointAngles( double[] anglesDeg )
 		{
-			// Batch variant of ApplyJointAngle: pushes all six axes to the viewer first,
-			// then refreshes the dashboard exactly once. Avoids the 6x dashboard rebuild
-			// per IK tick that the per-axis path would incur during MoveL.
+			// Batch variant of ApplyJointAngle: writes the joint cache, pushes a single
+			// batched update across the C++/CLI boundary (one native redraw), then
+			// refreshes the dashboard exactly once. Replaces the per-axis loop that
+			// caused six full scene redraws per MoveL tick and produced visible jitter.
 			for( int i = 0; i < JointCount; i++ ) {
 				_jointAngles[ i ] = anglesDeg[ i ];
-				_viewer.SetJointAngle( i, anglesDeg[ i ] );
 			}
+			_viewer.SetJointAngles( anglesDeg );
 			UpdateDashboard();
 		}
 

@@ -42,6 +42,11 @@ namespace OccBridge {
 		void SetJointAngle( int axisIndex, double angleDeg );
 		// Sets the joint angle (degrees) for the given 0-based axis
 
+		void SetJointAngles( cli::array<double>^ anglesDeg );
+		// Batch variant of SetJointAngle: pushes all six joint angles to the native
+		// scene and triggers exactly one redraw. Required by MoveL / MoveJ tick paths
+		// where 6 individual SetJointAngle calls would cause 6 full scene redraws.
+
 		cli::array<double>^ GetTcpPose( void );
 		// Returns the TCP pose as [x, y, z, rx, ry, rz] in mm and degrees,
 		// or nullptr if no robot is currently loaded

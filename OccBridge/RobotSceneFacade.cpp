@@ -164,6 +164,21 @@ void RobotSceneFacade::setJointAngle( int axisIndex, double angleDeg )
 	updateRobotTransforms();
 }
 
+void RobotSceneFacade::setJointAngles( const double anglesDeg[ 6 ] )
+// Batch joint update: writes all six axes into the kinematics solver and then runs
+// a single updateRobotTransforms() pass. The naive loop of setJointAngle() would
+// trigger six full scene redraws per call, which is the dominant jitter source for
+// MoveL / MoveJ tick handlers running at tens to hundreds of Hz.
+{
+	if( anglesDeg == nullptr ) {
+		return;
+	}
+	for( int i = 0; i < 6; ++i ) {
+		m_impl->kin.setJointAngle( i, anglesDeg[ i ] );
+	}
+	updateRobotTransforms();
+}
+
 void RobotSceneFacade::updateRobotTransforms()
 // Asks RobotKinematics for the cumulative DH chain, then pushes each part's final
 // transform (DH * offset) into SceneRepository via the partToSlot map. The TCP

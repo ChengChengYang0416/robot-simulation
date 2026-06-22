@@ -54,6 +54,11 @@ public:
 	virtual void setJointAngle( int axisIndex, double angleDeg ) = 0;
 	// Updates the given 0-based axis angle (degrees) and refreshes the scene.
 
+	virtual void setJointAngles( const double anglesDeg[ 6 ] ) = 0;
+	// Batch variant of setJointAngle: applies all six axes and redraws the scene
+	// exactly once. Required by MoveL / MoveJ tick handlers to avoid the 6x full
+	// scene redraw cost of looping setJointAngle() per axis at high frame rates.
+
 	[[nodiscard]] virtual bool getTcpPose( double out[6] ) const = 0;
 	// Fills out with [x, y, z, rx, ry, rz] in mm and degrees (ZYX intrinsic Euler);
 	// returns false when no robot is loaded or out is null.
