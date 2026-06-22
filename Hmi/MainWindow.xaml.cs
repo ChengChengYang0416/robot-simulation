@@ -36,6 +36,19 @@ namespace Hmi
 		private int _jogDir;
 		private DateTime _jogLastTick;
 
+		// MoveL runtime: linear interpolation of [X, Y, Z, A, B, C] from start to target,
+		// running IK each frame and committing the joint solution to the scene.
+		// 3 ms is aspirational; DispatcherTimer typically lands at the WPF render rate
+		// (~16 ms), so the wall-clock based progress ratio keeps motion duration honest.
+		private const int MoveLTickMs = 3;
+		private const double MoveLLinearSpeedMmPerSec  = 100.0;
+		private const double MoveLAngularSpeedDegPerSec = 45.0;
+		private DispatcherTimer _moveLTimer;
+		private double[] _moveLStart;
+		private double[] _moveLTarget;
+		private DateTime _moveLT0;
+		private double _moveLDurationSec;
+
 		private const string RegistryKey = @"SOFTWARE\RobotSimulation";
 		private const string RegistryValue = "LastModelFolder";
 
@@ -216,6 +229,7 @@ namespace Hmi
 
 		private void BtnClear_Click( object sender, RoutedEventArgs e )
 		{
+			StopMoveL( silent: true );
 			_viewer.ClearScene();
 			_robotLoaded = false;
 			ResetSliders();
@@ -363,6 +377,7 @@ namespace Hmi
 		private void ResetSliders()
 		{
 			StopJog();
+			StopMoveL( silent: true );
 			for( int i = 0; i < JointCount; i++ ) {
 				_jointAngles[ i ] = 0.0;
 				if( _robotLoaded ) {
@@ -459,6 +474,141 @@ namespace Hmi
 				}
 			}
 			return true;
+		}
+
+		private void BtnMoveL_Click( object sender, RoutedEventArgs e )
+		{
+			// Linear TCP motion: lerp position in mm and RPY in deg (after wrapping each
+			// component delta to [-180, 180] so we always take the short way around),
+			// solving IK per frame with the previous joint state as seed so the solver
+			// tracks a single continuous branch. Velocity planning (trapezoidal / S-curve)
+			// arrives in roadmap items 2.5 / 2.6; until then this is a constant-speed move.
+			if( !_robotLoaded ) {
+				SetStatus( "Load a robot first." );
+				return;
+			}
+			if( !TryReadPoseInputs( out var target ) ) {
+				SetStatus( "Invalid pose input: enter numeric XYZ (mm) and ABC (deg)." );
+				return;
+			}
+			var current = _viewer.GetTcpPose();
+			if( current == null || current.Length < 6 ) {
+				SetStatus( "TCP pose unavailable." );
+				return;
+			}
+
+			double dx = target[ 0 ] - current[ 0 ];
+			double dy = target[ 1 ] - current[ 1 ];
+			double dz = target[ 2 ] - current[ 2 ];
+			double linearDist = Math.Sqrt( dx * dx + dy * dy + dz * dz );
+
+			double dA = NormalizeAngleDeg( target[ 3 ] - current[ 3 ] );
+			double dB = NormalizeAngleDeg( target[ 4 ] - current[ 4 ] );
+			double dC = NormalizeAngleDeg( target[ 5 ] - current[ 5 ] );
+			double angularDist = Math.Max( Math.Abs( dA ), Math.Max( Math.Abs( dB ), Math.Abs( dC ) ) );
+
+			double linTime = linearDist  / MoveLLinearSpeedMmPerSec;
+			double angTime = angularDist / MoveLAngularSpeedDegPerSec;
+			_moveLDurationSec = Math.Max( linTime, angTime );
+
+			if( _moveLDurationSec < 1.0e-6 ) {
+				SetStatus( "MoveL: already at target." );
+				return;
+			}
+
+			// Cancel any in-flight MoveL so back-to-back clicks restart cleanly.
+			StopMoveL( silent: true );
+
+			_moveLStart  = new[] { current[ 0 ], current[ 1 ], current[ 2 ],
+								   current[ 3 ], current[ 4 ], current[ 5 ] };
+			_moveLTarget = new[] { target[ 0 ], target[ 1 ], target[ 2 ],
+								   current[ 3 ] + dA, current[ 4 ] + dB, current[ 5 ] + dC };
+			_moveLT0 = DateTime.UtcNow;
+
+			if( _moveLTimer == null ) {
+				_moveLTimer = new DispatcherTimer( DispatcherPriority.Render ) {
+					Interval = TimeSpan.FromMilliseconds( MoveLTickMs ),
+				};
+				_moveLTimer.Tick += MoveLTimer_Tick;
+			}
+			_moveLTimer.Start();
+			BtnStopMoveL.IsEnabled = true;
+			SetStatus( $"MoveL: {linearDist:F1} mm / {angularDist:F1}° in {_moveLDurationSec:F2} s" );
+		}
+
+		private void BtnStopMoveL_Click( object sender, RoutedEventArgs e )
+		{
+			StopMoveL( silent: false );
+		}
+
+		private void MoveLTimer_Tick( object sender, EventArgs e )
+		{
+			if( !_robotLoaded || _moveLStart == null || _moveLTarget == null ) {
+				StopMoveL( silent: true );
+				return;
+			}
+
+			double elapsed = ( DateTime.UtcNow - _moveLT0 ).TotalSeconds;
+			double t = elapsed / _moveLDurationSec;
+			bool reachedEnd = t >= 1.0;
+			if( reachedEnd ) {
+				t = 1.0;
+			}
+
+			var interp = new double[ 6 ];
+			for( int i = 0; i < 6; i++ ) {
+				interp[ i ] = _moveLStart[ i ] + t * ( _moveLTarget[ i ] - _moveLStart[ i ] );
+			}
+
+			var outAngles = new double[ JointCount ];
+			int status = _viewer.SolveTcpIk( interp, _jointMin, _jointMax, outAngles );
+			if( status != 0 ) {
+				StopMoveL( silent: true );
+				SetStatus( status == 2
+					? "MoveL aborted: IK did not converge mid-trajectory (singularity or unreachable point)."
+					: "MoveL aborted: invalid IK configuration." );
+				return;
+			}
+
+			ApplyAllJointAngles( outAngles );
+
+			if( reachedEnd ) {
+				StopMoveL( silent: true );
+				SetStatus( "MoveL: target reached." );
+			}
+		}
+
+		private void StopMoveL( bool silent )
+		{
+			_moveLTimer?.Stop();
+			_moveLStart = null;
+			_moveLTarget = null;
+			if( BtnStopMoveL != null ) {
+				BtnStopMoveL.IsEnabled = false;
+			}
+			if( !silent ) {
+				SetStatus( "MoveL stopped." );
+			}
+		}
+
+		private void ApplyAllJointAngles( double[] anglesDeg )
+		{
+			// Batch variant of ApplyJointAngle: pushes all six axes to the viewer first,
+			// then refreshes the dashboard exactly once. Avoids the 6x dashboard rebuild
+			// per IK tick that the per-axis path would incur during MoveL.
+			for( int i = 0; i < JointCount; i++ ) {
+				_jointAngles[ i ] = anglesDeg[ i ];
+				_viewer.SetJointAngle( i, anglesDeg[ i ] );
+			}
+			UpdateDashboard();
+		}
+
+		private static double NormalizeAngleDeg( double a )
+		{
+			// Wrap an angle delta to (-180, 180] so MoveL takes the short rotational path.
+			while( a >   180.0 ) a -= 360.0;
+			while( a <= -180.0 ) a += 360.0;
+			return a;
 		}
 
 		private void TglDragEnable_Changed( object sender, RoutedEventArgs e )

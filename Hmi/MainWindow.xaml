@@ -146,12 +146,18 @@
                                 </GroupBox>
 
                                 <Grid Margin="0,0,0,8">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
-                                    <Button Grid.Column="0" Content="Copy Current" Margin="0,0,4,0" Padding="8,4" Click="BtnCopyCurrentPose_Click"/>
-                                    <Button Grid.Column="1" Content="Move To"      Margin="4,0,0,0" Padding="8,4" Click="BtnMoveTo_Click"/>
+                                    <Button Grid.Row="0" Grid.Column="0" Content="Copy Current" Margin="0,0,4,4" Padding="8,4" Click="BtnCopyCurrentPose_Click"/>
+                                    <Button Grid.Row="0" Grid.Column="1" Content="Move To"      Margin="4,0,0,4" Padding="8,4" Click="BtnMoveTo_Click"/>
+                                    <Button Grid.Row="1" Grid.Column="0" Content="MoveL"        Margin="0,4,4,0" Padding="8,4" Click="BtnMoveL_Click"/>
+                                    <Button Grid.Row="1" Grid.Column="1" Name="BtnStopMoveL" Content="Stop"  Margin="4,4,0,0" Padding="8,4" Click="BtnStopMoveL_Click" IsEnabled="False"/>
                                 </Grid>
                             </StackPanel>
                         </ScrollViewer>
