@@ -1,32 +1,8 @@
-#include "MotionProfile.h"
+#include "TrapezoidalProfile.h"
 
-#include <algorithm>
 #include <cmath>
 
-namespace OccBridge::Motion {
-
-namespace {
-constexpr double kMinPositive = 1.0e-9;
-}  // namespace
-
-LinearProfile::LinearProfile( double durationSec ) noexcept
-{
-	m_durationSec = std::max( 0.0, durationSec );
-}
-
-double LinearProfile::sample( double elapsedSec ) const noexcept
-{
-	if( m_durationSec <= 0.0 ) {
-		return 1.0;
-	}
-	if( elapsedSec <= 0.0 ) {
-		return 0.0;
-	}
-	if( elapsedSec >= m_durationSec ) {
-		return 1.0;
-	}
-	return elapsedSec / m_durationSec;
-}
+namespace Motion {
 
 TrapezoidalProfile::TrapezoidalProfile( double durationSec, double accelTimeSec ) noexcept
 {
@@ -93,4 +69,4 @@ double TrapezoidalProfile::sample( double elapsedSec ) const noexcept
 	return 1.0 - 0.5 * ( m_vPeakNorm / m_ta ) * tr * tr;
 }
 
-}  // namespace OccBridge::Motion
+}  // namespace Motion

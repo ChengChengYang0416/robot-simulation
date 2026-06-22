@@ -16,6 +16,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Interaction", "Interaction\
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Viewer", "Viewer\Viewer.vcxproj", "{2B6E5A1E-1234-4ABC-9D01-1A2B3C4D5E65}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Motion", "Motion\Motion.vcxproj", "{2B6E5A1E-1234-4ABC-9D01-1A2B3C4D5E66}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -50,6 +52,10 @@ Global
 		{2B6E5A1E-1234-4ABC-9D01-1A2B3C4D5E65}.Debug|x64.Build.0 = Debug|x64
 		{2B6E5A1E-1234-4ABC-9D01-1A2B3C4D5E65}.Release|x64.ActiveCfg = Release|x64
 		{2B6E5A1E-1234-4ABC-9D01-1A2B3C4D5E65}.Release|x64.Build.0 = Release|x64
+		{2B6E5A1E-1234-4ABC-9D01-1A2B3C4D5E66}.Debug|x64.ActiveCfg = Debug|x64
+		{2B6E5A1E-1234-4ABC-9D01-1A2B3C4D5E66}.Debug|x64.Build.0 = Debug|x64
+		{2B6E5A1E-1234-4ABC-9D01-1A2B3C4D5E66}.Release|x64.ActiveCfg = Release|x64
+		{2B6E5A1E-1234-4ABC-9D01-1A2B3C4D5E66}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

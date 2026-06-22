@@ -1,6 +1,6 @@
 #pragma once
 
-namespace OccBridge::Motion {
+namespace Motion {
 	class Profile;
 }
 
@@ -10,12 +10,12 @@ namespace OccBridge {
 
 	public ref class MotionProfile
 	{
-	// Managed wrapper around OccBridge::Motion::Profile. The C# layer owns one of
-	// these per active trajectory player (MoveL / MoveJ); construction goes through
-	// the static factory methods so the polymorphic native type is never named on
-	// the managed side. All numerical work happens in the native profile, keeping
-	// motion-planning math in the kinematics library where it can be unit-tested
-	// independently of WPF / dispatcher timing.
+	// Managed wrapper around Motion::Profile. The C# layer owns one of these per
+	// active trajectory player (MoveL / MoveJ); construction goes through the
+	// static factory methods so the polymorphic native type is never named on
+	// the managed side. All numerical work happens in the native Motion library,
+	// keeping motion-planning math independent of WPF / dispatcher timing and
+	// free of OCCT and kinematics dependencies for unit testability.
 	public:
 		~MotionProfile();
 		// Standard dispose pattern; delegates to the finalizer.
@@ -35,16 +35,16 @@ namespace OccBridge {
 		// Builds a LinearProfile (constant-velocity baseline).
 
 		static MotionProfile^ CreateTrapezoidal( double distance, double vMax, double aMax );
-		// Plans a TrapezoidalProfile via Profile::plan(). The native code degrades
-		// to a triangular profile when the distance is too short to reach vMax, so
-		// callers do not need to detect that case explicitly.
+		// Plans a TrapezoidalProfile via TrapezoidalProfile::plan(). The native
+		// code degrades to a triangular profile when the distance is too short to
+		// reach vMax, so callers do not need to detect that case explicitly.
 
 	private:
-		MotionProfile( OccBridge::Motion::Profile* native );
+		MotionProfile( Motion::Profile* native );
 		// Internal constructor used by the static factories; takes ownership of
 		// the native pointer.
 
-		OccBridge::Motion::Profile* m_pNative;
+		Motion::Profile* m_pNative;
 	};
 
 }  // namespace OccBridge

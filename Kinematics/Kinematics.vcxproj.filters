@@ -26,9 +26,6 @@
     <ClInclude Include="IkSolver.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="MotionProfile.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="RobotKinematics.cpp">
@@ -41,9 +38,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="IkSolver.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="MotionProfile.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

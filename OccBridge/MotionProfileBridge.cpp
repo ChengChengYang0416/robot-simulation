@@ -1,10 +1,12 @@
 #include "MotionProfileBridge.h"
 
-#include "../Kinematics/MotionProfile.h"
+#include "../Motion/MotionProfile.h"
+#include "../Motion/LinearProfile.h"
+#include "../Motion/TrapezoidalProfile.h"
 
 namespace OccBridge {
 
-MotionProfile::MotionProfile( OccBridge::Motion::Profile* native )
+MotionProfile::MotionProfile( Motion::Profile* native )
 	: m_pNative( native )
 // Takes ownership of the native pointer. The static factories are the only
 // callers, and they always pass a heap-allocated subclass instance.
@@ -45,7 +47,7 @@ MotionProfile^ MotionProfile::CreateLinear( double durationSec )
 // wrapper. The native heap allocation is intentional: the managed finalizer
 // owns the lifetime and we want polymorphic Profile pointers.
 {
-	auto* native = new OccBridge::Motion::LinearProfile( durationSec );
+	auto* native = new Motion::LinearProfile( durationSec );
 	return gcnew MotionProfile( native );
 }
 
@@ -54,8 +56,8 @@ MotionProfile^ MotionProfile::CreateTrapezoidal( double distance, double vMax, d
 // plan() returns a value type, so we copy it onto the heap to satisfy the
 // polymorphic-pointer ownership model.
 {
-	auto plan = OccBridge::Motion::TrapezoidalProfile::plan( distance, vMax, aMax );
-	auto* native = new OccBridge::Motion::TrapezoidalProfile( plan );
+	auto plan = Motion::TrapezoidalProfile::plan( distance, vMax, aMax );
+	auto* native = new Motion::TrapezoidalProfile( plan );
 	return gcnew MotionProfile( native );
 }
 
