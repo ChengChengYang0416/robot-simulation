@@ -71,6 +71,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="IkSolver.h" />
+    <ClInclude Include="MotionProfile.h" />
     <ClInclude Include="RobotKinematics.h" />
     <ClInclude Include="RobotPartDef.h" />
     <ClInclude Include="TcpPoseSolver.h" />
@@ -78,6 +79,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="IkSolver.cpp" />
+    <ClCompile Include="MotionProfile.cpp" />
     <ClCompile Include="RobotKinematics.cpp" />
     <ClCompile Include="TcpPoseSolver.cpp" />
     <ClCompile Include="TransformBuilder.cpp" />

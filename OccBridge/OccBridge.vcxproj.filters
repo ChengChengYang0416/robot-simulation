@@ -20,12 +20,18 @@
     <ClInclude Include="IRobotScene.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="MotionProfileBridge.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="OccViewerControl.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="RobotSceneFacade.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="MotionProfileBridge.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

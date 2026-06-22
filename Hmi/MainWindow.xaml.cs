@@ -42,12 +42,14 @@ namespace Hmi
 		// (~16 ms), so the wall-clock based progress ratio keeps motion duration honest.
 		private const int MoveLTickMs = 3;
 		private const double MoveLLinearSpeedMmPerSec  = 100.0;
+		private const double MoveLLinearAccelMmPerSec2 = 400.0;   // reaches vMax in 0.25 s
 		private const double MoveLAngularSpeedDegPerSec = 45.0;
+		private const double MoveLAngularAccelDegPerSec2 = 180.0; // reaches vMax in 0.25 s
 		private DispatcherTimer _moveLTimer;
 		private double[] _moveLStart;
 		private double[] _moveLTarget;
 		private DateTime _moveLT0;
-		private double _moveLDurationSec;
+		private OccBridge.MotionProfile _moveLProfile;
 
 		// MoveJ runtime: joint-space interpolation. One-shot IK at the start resolves the
 		// target TCP pose into joint angles; the tick then lerps each axis independently
@@ -55,12 +57,13 @@ namespace Hmi
 		// Skips the per-tick IK that MoveL pays, never hits Cartesian singularities, but
 		// the TCP traces an arc rather than a straight line in Cartesian space.
 		private const int MoveJTickMs = 3;
-		private const double MoveJSpeedDegPerSec = 60.0;
+		private const double MoveJSpeedDegPerSec  = 60.0;
+		private const double MoveJAccelDegPerSec2 = 240.0;        // reaches vMax in 0.25 s
 		private DispatcherTimer _moveJTimer;
 		private double[] _moveJStart;
 		private double[] _moveJTarget;
 		private DateTime _moveJT0;
-		private double _moveJDurationSec;
+		private OccBridge.MotionProfile _moveJProfile;
 
 		private const string RegistryKey = @"SOFTWARE\RobotSimulation";
 		private const string RegistryValue = "LastModelFolder";
@@ -459,8 +462,9 @@ namespace Hmi
 			// Linear TCP motion: lerp position in mm and RPY in deg (after wrapping each
 			// component delta to [-180, 180] so we always take the short way around),
 			// solving IK per frame with the previous joint state as seed so the solver
-			// tracks a single continuous branch. Velocity planning (trapezoidal / S-curve)
-			// arrives in roadmap items 2.5 / 2.6; until then this is a constant-speed move.
+			// tracks a single continuous branch. The progress function s(t) comes from a
+			// MotionProfile so the same player can switch between linear, trapezoidal,
+			// or future S-curve shapes without touching the tick loop.
 			if( !_robotLoaded ) {
 				SetStatus( "Load a robot first." );
 				return;
@@ -485,11 +489,15 @@ namespace Hmi
 			double dC = NormalizeAngleDeg( target[ 5 ] - current[ 5 ] );
 			double angularDist = Math.Max( Math.Abs( dA ), Math.Max( Math.Abs( dB ), Math.Abs( dC ) ) );
 
-			double linTime = linearDist  / MoveLLinearSpeedMmPerSec;
-			double angTime = angularDist / MoveLAngularSpeedDegPerSec;
-			_moveLDurationSec = Math.Max( linTime, angTime );
+			// Plan a trapezoidal profile for each dimension under its own vMax/aMax, then
+			// keep the longer one as the dominant profile. The other dimension follows
+			// the same s(t), which means it moves slower than its limit — that is the
+			// price of synchronisation, and guarantees no dimension ever exceeds its cap.
+			var linPlan = OccBridge.MotionProfile.CreateTrapezoidal( linearDist,  MoveLLinearSpeedMmPerSec,  MoveLLinearAccelMmPerSec2 );
+			var angPlan = OccBridge.MotionProfile.CreateTrapezoidal( angularDist, MoveLAngularSpeedDegPerSec, MoveLAngularAccelDegPerSec2 );
+			OccBridge.MotionProfile profile = ( linPlan.DurationSec >= angPlan.DurationSec ) ? linPlan : angPlan;
 
-			if( _moveLDurationSec < 1.0e-6 ) {
+			if( profile.DurationSec < 1.0e-6 ) {
 				SetStatus( "MoveL: already at target." );
 				return;
 			}
@@ -502,6 +510,7 @@ namespace Hmi
 								   current[ 3 ], current[ 4 ], current[ 5 ] };
 			_moveLTarget = new[] { target[ 0 ], target[ 1 ], target[ 2 ],
 								   current[ 3 ] + dA, current[ 4 ] + dB, current[ 5 ] + dC };
+			_moveLProfile = profile;
 			_moveLT0 = DateTime.UtcNow;
 
 			if( _moveLTimer == null ) {
@@ -511,8 +520,8 @@ namespace Hmi
 				_moveLTimer.Tick += MoveLTimer_Tick;
 			}
 			_moveLTimer.Start();
-			BtnStopMotion.IsEnabled = true;
-			SetStatus( $"MoveL: {linearDist:F1} mm / {angularDist:F1}° in {_moveLDurationSec:F2} s" );
+			UpdateStopButtonState();
+			SetStatus( $"MoveL trap: {linearDist:F1} mm / {angularDist:F1}° in {profile.DurationSec:F2} s" );
 		}
 
 		private void BtnStopMotion_Click( object sender, RoutedEventArgs e )
@@ -525,21 +534,18 @@ namespace Hmi
 
 		private void MoveLTimer_Tick( object sender, EventArgs e )
 		{
-			if( !_robotLoaded || _moveLStart == null || _moveLTarget == null ) {
+			if( !_robotLoaded || _moveLStart == null || _moveLTarget == null || _moveLProfile == null ) {
 				StopMoveL( silent: true );
 				return;
 			}
 
 			double elapsed = ( DateTime.UtcNow - _moveLT0 ).TotalSeconds;
-			double t = elapsed / _moveLDurationSec;
-			bool reachedEnd = t >= 1.0;
-			if( reachedEnd ) {
-				t = 1.0;
-			}
+			double s = _moveLProfile.Sample( elapsed );
+			bool reachedEnd = elapsed >= _moveLProfile.DurationSec;
 
 			var interp = new double[ 6 ];
 			for( int i = 0; i < 6; i++ ) {
-				interp[ i ] = _moveLStart[ i ] + t * ( _moveLTarget[ i ] - _moveLStart[ i ] );
+				interp[ i ] = _moveLStart[ i ] + s * ( _moveLTarget[ i ] - _moveLStart[ i ] );
 			}
 
 			var outAngles = new double[ JointCount ];
@@ -565,6 +571,7 @@ namespace Hmi
 			_moveLTimer?.Stop();
 			_moveLStart = null;
 			_moveLTarget = null;
+			_moveLProfile = null;
 			UpdateStopButtonState();
 			if( !silent ) {
 				SetStatus( "MoveL stopped." );
@@ -624,17 +631,23 @@ namespace Hmi
 				return;
 			}
 
-			// Slowest-axis pacing: T = max_i(|Δθ_i|) / v. A single shared speed limit is
-			// used until roadmap item 2.12 introduces per-axis velocity caps.
+			// Slowest-axis pacing under trapezoidal limits: plan a profile for every
+			// axis using shared vMax/aMax, pick the one with the longest duration as
+			// dominant. All axes follow the same s(t) so they reach the endpoint
+			// together; the faster axes simply move below their cap. Per-axis caps
+			// (roadmap 2.12) will refine which axis ends up dominant.
+			OccBridge.MotionProfile dominant = null;
 			double maxDelta = 0.0;
 			for( int i = 0; i < JointCount; i++ ) {
-				double d = Math.Abs( targetJoints[ i ] - _jointAngles[ i ] );
-				if( d > maxDelta ) {
-					maxDelta = d;
+				double delta = Math.Abs( targetJoints[ i ] - _jointAngles[ i ] );
+				var p = OccBridge.MotionProfile.CreateTrapezoidal( delta, MoveJSpeedDegPerSec, MoveJAccelDegPerSec2 );
+				if( dominant == null || p.DurationSec > dominant.DurationSec ) {
+					dominant = p;
+					maxDelta = delta;
 				}
 			}
-			_moveJDurationSec = maxDelta / MoveJSpeedDegPerSec;
-			if( _moveJDurationSec < 1.0e-6 ) {
+
+			if( dominant == null || dominant.DurationSec < 1.0e-6 ) {
 				SetStatus( "MoveJ: already at target." );
 				return;
 			}
@@ -642,8 +655,9 @@ namespace Hmi
 			StopMoveL( silent: true );
 			StopMoveJ( silent: true );
 
-			_moveJStart  = (double[])_jointAngles.Clone();
-			_moveJTarget = targetJoints;
+			_moveJStart   = (double[])_jointAngles.Clone();
+			_moveJTarget  = targetJoints;
+			_moveJProfile = dominant;
 			_moveJT0 = DateTime.UtcNow;
 
 			if( _moveJTimer == null ) {
@@ -654,26 +668,23 @@ namespace Hmi
 			}
 			_moveJTimer.Start();
 			UpdateStopButtonState();
-			SetStatus( $"MoveJ: max Δ {maxDelta:F1}° in {_moveJDurationSec:F2} s" );
+			SetStatus( $"MoveJ trap: max Δ {maxDelta:F1}° in {dominant.DurationSec:F2} s" );
 		}
 
 		private void MoveJTimer_Tick( object sender, EventArgs e )
 		{
-			if( !_robotLoaded || _moveJStart == null || _moveJTarget == null ) {
+			if( !_robotLoaded || _moveJStart == null || _moveJTarget == null || _moveJProfile == null ) {
 				StopMoveJ( silent: true );
 				return;
 			}
 
 			double elapsed = ( DateTime.UtcNow - _moveJT0 ).TotalSeconds;
-			double t = elapsed / _moveJDurationSec;
-			bool reachedEnd = t >= 1.0;
-			if( reachedEnd ) {
-				t = 1.0;
-			}
+			double s = _moveJProfile.Sample( elapsed );
+			bool reachedEnd = elapsed >= _moveJProfile.DurationSec;
 
 			var interp = new double[ JointCount ];
 			for( int i = 0; i < JointCount; i++ ) {
-				interp[ i ] = _moveJStart[ i ] + t * ( _moveJTarget[ i ] - _moveJStart[ i ] );
+				interp[ i ] = _moveJStart[ i ] + s * ( _moveJTarget[ i ] - _moveJStart[ i ] );
 			}
 			ApplyAllJointAngles( interp );
 
@@ -688,6 +699,7 @@ namespace Hmi
 			_moveJTimer?.Stop();
 			_moveJStart = null;
 			_moveJTarget = null;
+			_moveJProfile = null;
 			UpdateStopButtonState();
 			if( !silent ) {
 				SetStatus( "MoveJ stopped." );

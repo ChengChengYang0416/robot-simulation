@@ -101,10 +101,12 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="IRobotScene.h" />
+    <ClInclude Include="MotionProfileBridge.h" />
     <ClInclude Include="OccViewerControl.h" />
     <ClInclude Include="RobotSceneFacade.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="MotionProfileBridge.cpp" />
     <ClCompile Include="OccViewerControl.cpp" />
     <ClCompile Include="RobotSceneFacade.cpp">
       <CompileAsManaged>false</CompileAsManaged>
