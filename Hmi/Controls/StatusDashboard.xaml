@@ -86,5 +86,34 @@
                 <TextBlock Grid.Row="6" Grid.Column="2" Text="°" Margin="4,0,0,0"/>
             </Grid>
         </GroupBox>
+
+        <GroupBox Header="Singularity" Margin="0,0,0,12">
+            <Grid Margin="10,8">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="60"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <Border Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2"
+                        Name="SingBadge" Background="LightGray"
+                        CornerRadius="3" Padding="6,3" Margin="0,0,0,4">
+                    <TextBlock Name="TxtSingStatus" Text="Normal"
+                               FontWeight="Bold" HorizontalAlignment="Center"/>
+                </Border>
+
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="Wrist" VerticalAlignment="Center"/>
+                <TextBlock Grid.Row="1" Grid.Column="1" Name="TxtSingWrist" Text="—"
+                           HorizontalAlignment="Right" FontFamily="Consolas"/>
+
+                <TextBlock Grid.Row="2" Grid.Column="0" Text="Arm" VerticalAlignment="Center"/>
+                <TextBlock Grid.Row="2" Grid.Column="1" Name="TxtSingArm" Text="—"
+                           HorizontalAlignment="Right" FontFamily="Consolas"/>
+            </Grid>
+        </GroupBox>
     </StackPanel>
 </UserControl>

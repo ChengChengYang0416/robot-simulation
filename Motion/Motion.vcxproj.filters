@@ -23,6 +23,9 @@
     <ClInclude Include="SCurveProfile.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="SingularitySpeedScaler.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="LinearProfile.cpp">
@@ -32,6 +35,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="SCurveProfile.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SingularitySpeedScaler.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

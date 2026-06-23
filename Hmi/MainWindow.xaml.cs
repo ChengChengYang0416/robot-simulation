@@ -52,6 +52,14 @@ namespace Hmi
 		private double[] _moveLTarget;
 		private DateTime _moveLT0;
 		private OccBridge.MotionProfile _moveLProfile;
+		// Singularity-aware tempo control: instead of sampling the profile at the
+		// wall-clock elapsed time, the tick advances a virtual clock by dt * scale
+		// where scale comes from the SpeedScaler ramp. ratio >= warn → scale 1
+		// (full speed), ratio <= crit → scale 0 (player aborts), in between is a
+		// linear ramp so deceleration is smooth.
+		private double _moveLVirtualSec;
+		private DateTime _moveLLastTickUtc;
+		private OccBridge.SpeedScaler _moveLScaler;
 
 		// MoveJ runtime: joint-space interpolation. One-shot IK at the start resolves the
 		// target TCP pose into joint angles; the tick then lerps each axis independently
@@ -67,6 +75,13 @@ namespace Hmi
 		private double[] _moveJTarget;
 		private DateTime _moveJT0;
 		private OccBridge.MotionProfile _moveJProfile;
+		private double _moveJVirtualSec;
+		private DateTime _moveJLastTickUtc;
+		private OccBridge.SpeedScaler _moveJScaler;
+
+		// Shared scratch buffer for OccViewerControl.GetManipulability(). Reused
+		// across MoveL / MoveJ ticks so the per-tick allocation cost is zero.
+		private readonly double[] _singularityMetrics = new double[ 5 ];
 
 		private const string RegistryKey = @"SOFTWARE\RobotSimulation";
 		private const string RegistryValue = "LastModelFolder";
@@ -410,12 +425,20 @@ namespace Hmi
 
 		private void UpdateDashboard()
 		{
-			// Pushes the latest joint angles and TCP pose (from native) to the dashboard.
+			// Pushes the latest joint angles, TCP pose, and singularity status to the dashboard.
 			Dashboard.UpdateJoints( _jointAngles );
 
 			var pose = _viewer.GetTcpPose();
 			if( pose != null ) {
 				Dashboard.UpdateTcpPose( pose );
+			}
+
+			// Singularity badge: native SingularityMonitor runs only when a robot is
+			// loaded. Returns false otherwise → leave the badge in its reset state.
+			if( _viewer.GetManipulability( _singularityMetrics, out int kind, out int level ) ) {
+				Dashboard.UpdateSingularity( level, kind,
+					_singularityMetrics[ 3 ],   // wristRatio
+					_singularityMetrics[ 4 ] ); // armRatio
 			}
 		}
 
@@ -525,6 +548,12 @@ namespace Hmi
 								   current[ 3 ] + dA, current[ 4 ] + dB, current[ 5 ] + dC };
 			_moveLProfile = profile;
 			_moveLT0 = DateTime.UtcNow;
+			_moveLVirtualSec  = 0.0;
+			_moveLLastTickUtc = _moveLT0;
+			if( _moveLScaler == null ) {
+				_moveLScaler = new OccBridge.SpeedScaler();
+			}
+			_moveLScaler.Reset();
 
 			if( _moveLTimer == null ) {
 				_moveLTimer = new DispatcherTimer( DispatcherPriority.Render ) {
@@ -552,9 +581,35 @@ namespace Hmi
 				return;
 			}
 
-			double elapsed = ( DateTime.UtcNow - _moveLT0 ).TotalSeconds;
-			double s = _moveLProfile.Sample( elapsed );
-			bool reachedEnd = elapsed >= _moveLProfile.DurationSec;
+			// Singularity-aware tempo: advance the virtual clock by dt * scale,
+			// where scale comes from the SpeedScaler ramp on the latest Jacobian
+			// manipulability ratio. Sampling the manipulability *before* applying
+			// the new joint angles means the deceleration kicks in on the way
+			// *into* the singular region rather than after the fact.
+			DateTime now = DateTime.UtcNow;
+			double   dt  = ( now - _moveLLastTickUtc ).TotalSeconds;
+			_moveLLastTickUtc = now;
+
+			double scale = 1.0;
+			if( _viewer.GetManipulability( _singularityMetrics, out int _, out int _ ) ) {
+				double ratio = OccBridge.SpeedScaler.Combine(
+					_singularityMetrics[ 3 ],   // wristRatio
+					_singularityMetrics[ 4 ] ); // armRatio
+				scale = _moveLScaler.Scale( ratio );
+				if( _moveLScaler.ShouldAnnounceCritical() ) {
+					StopMoveL( silent: true );
+					SetStatus( "MoveL aborted: singularity (critical) — no safe path." );
+					MessageBox.Show( this,
+						"Trajectory stopped: the robot crossed into a critical singularity (wrist or elbow rank loss).\n\n"
+						+ "Adjust the target pose or seed posture to leave the degenerate region before retrying.",
+						"MoveL", MessageBoxButton.OK, MessageBoxImage.Warning );
+					return;
+				}
+			}
+			_moveLVirtualSec += dt * scale;
+
+			double s = _moveLProfile.Sample( _moveLVirtualSec );
+			bool reachedEnd = _moveLVirtualSec >= _moveLProfile.DurationSec;
 
 			var interp = new double[ 6 ];
 			for( int i = 0; i < 6; i++ ) {
@@ -678,6 +733,12 @@ namespace Hmi
 			_moveJTarget  = targetJoints;
 			_moveJProfile = dominant;
 			_moveJT0 = DateTime.UtcNow;
+			_moveJVirtualSec  = 0.0;
+			_moveJLastTickUtc = _moveJT0;
+			if( _moveJScaler == null ) {
+				_moveJScaler = new OccBridge.SpeedScaler();
+			}
+			_moveJScaler.Reset();
 
 			if( _moveJTimer == null ) {
 				_moveJTimer = new DispatcherTimer( DispatcherPriority.Render ) {
@@ -697,9 +758,30 @@ namespace Hmi
 				return;
 			}
 
-			double elapsed = ( DateTime.UtcNow - _moveJT0 ).TotalSeconds;
-			double s = _moveJProfile.Sample( elapsed );
-			bool reachedEnd = elapsed >= _moveJProfile.DurationSec;
+			DateTime now = DateTime.UtcNow;
+			double   dt  = ( now - _moveJLastTickUtc ).TotalSeconds;
+			_moveJLastTickUtc = now;
+
+			double scale = 1.0;
+			if( _viewer.GetManipulability( _singularityMetrics, out int _, out int _ ) ) {
+				double ratio = OccBridge.SpeedScaler.Combine(
+					_singularityMetrics[ 3 ],
+					_singularityMetrics[ 4 ] );
+				scale = _moveJScaler.Scale( ratio );
+				if( _moveJScaler.ShouldAnnounceCritical() ) {
+					StopMoveJ( silent: true );
+					SetStatus( "MoveJ aborted: singularity (critical) — no safe path." );
+					MessageBox.Show( this,
+						"Trajectory stopped: the robot crossed into a critical singularity (wrist or elbow rank loss).\n\n"
+						+ "Adjust the target pose or seed posture to leave the degenerate region before retrying.",
+						"MoveJ", MessageBoxButton.OK, MessageBoxImage.Warning );
+					return;
+				}
+			}
+			_moveJVirtualSec += dt * scale;
+
+			double s = _moveJProfile.Sample( _moveJVirtualSec );
+			bool reachedEnd = _moveJVirtualSec >= _moveJProfile.DurationSec;
 
 			var interp = new double[ JointCount ];
 			for( int i = 0; i < JointCount; i++ ) {

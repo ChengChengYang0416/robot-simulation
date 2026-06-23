@@ -4,6 +4,7 @@
 #include "../Motion/LinearProfile.h"
 #include "../Motion/TrapezoidalProfile.h"
 #include "../Motion/SCurveProfile.h"
+#include "../Motion/SingularitySpeedScaler.h"
 
 namespace OccBridge {
 
@@ -70,6 +71,73 @@ MotionProfile^ MotionProfile::CreateSCurve( double distance, double vMax, double
 	auto plan = Motion::SCurveProfile::plan( distance, vMax, aMax, jMax );
 	auto* native = new Motion::SCurveProfile( plan );
 	return gcnew MotionProfile( native );
+}
+
+SpeedScaler::SpeedScaler()
+	: m_pNative( new Motion::SingularitySpeedScaler() )
+{
+}
+
+SpeedScaler::SpeedScaler( double warnRatio, double critRatio )
+	: m_pNative( new Motion::SingularitySpeedScaler( warnRatio, critRatio ) )
+{
+}
+
+SpeedScaler::~SpeedScaler()
+{
+	this->!SpeedScaler();
+}
+
+SpeedScaler::!SpeedScaler()
+{
+	if( m_pNative != nullptr ) {
+		delete m_pNative;
+		m_pNative = nullptr;
+	}
+}
+
+double SpeedScaler::WarnRatio::get()
+{
+	return ( m_pNative != nullptr ) ? m_pNative->warnRatio() : 0.0;
+}
+
+double SpeedScaler::CritRatio::get()
+{
+	return ( m_pNative != nullptr ) ? m_pNative->critRatio() : 0.0;
+}
+
+SingularityLevel SpeedScaler::LastLevel::get()
+// Cast through int because the managed and native enums share numeric values
+// but live in separate namespaces; the static_cast is the cheapest projection.
+{
+	if( m_pNative == nullptr ) {
+		return SingularityLevel::Normal;
+	}
+	return static_cast<SingularityLevel>( static_cast<int>( m_pNative->lastLevel() ) );
+}
+
+void SpeedScaler::Reset()
+{
+	if( m_pNative != nullptr ) {
+		m_pNative->reset();
+	}
+}
+
+double SpeedScaler::Scale( double ratio )
+// Disposed wrapper falls back to "full speed" so a missing scaler never
+// freezes a trajectory; the player can still observe LastLevel == Normal.
+{
+	return ( m_pNative != nullptr ) ? m_pNative->scale( ratio ) : 1.0;
+}
+
+bool SpeedScaler::ShouldAnnounceCritical()
+{
+	return ( m_pNative != nullptr ) ? m_pNative->shouldAnnounceCritical() : false;
+}
+
+double SpeedScaler::Combine( double wristRatio, double armRatio )
+{
+	return Motion::SingularitySpeedScaler::combine( wristRatio, armRatio );
 }
 
 }  // namespace OccBridge
