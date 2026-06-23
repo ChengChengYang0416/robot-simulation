@@ -3,6 +3,7 @@
 #include "../Motion/MotionProfile.h"
 #include "../Motion/LinearProfile.h"
 #include "../Motion/TrapezoidalProfile.h"
+#include "../Motion/SCurveProfile.h"
 
 namespace OccBridge {
 
@@ -58,6 +59,16 @@ MotionProfile^ MotionProfile::CreateTrapezoidal( double distance, double vMax, d
 {
 	auto plan = Motion::TrapezoidalProfile::plan( distance, vMax, aMax );
 	auto* native = new Motion::TrapezoidalProfile( plan );
+	return gcnew MotionProfile( native );
+}
+
+MotionProfile^ MotionProfile::CreateSCurve( double distance, double vMax, double aMax, double jMax )
+// Plans a jerk-limited S-curve via the native factory and wraps it. Same
+// value-then-copy-to-heap pattern as CreateTrapezoidal so the managed wrapper
+// always owns a polymorphic Profile*.
+{
+	auto plan = Motion::SCurveProfile::plan( distance, vMax, aMax, jMax );
+	auto* native = new Motion::SCurveProfile( plan );
 	return gcnew MotionProfile( native );
 }
 

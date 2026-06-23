@@ -41,10 +41,12 @@ namespace Hmi
 		// 3 ms is aspirational; DispatcherTimer typically lands at the WPF render rate
 		// (~16 ms), so the wall-clock based progress ratio keeps motion duration honest.
 		private const int MoveLTickMs = 3;
-		private const double MoveLLinearSpeedMmPerSec  = 100.0;
-		private const double MoveLLinearAccelMmPerSec2 = 400.0;   // reaches vMax in 0.25 s
+		private const double MoveLLinearSpeedMmPerSec   = 100.0;
+		private const double MoveLLinearAccelMmPerSec2  = 400.0;   // reaches vMax in 0.25 s
+		private const double MoveLLinearJerkMmPerSec3   = 4000.0;  // reaches aMax in 0.10 s
 		private const double MoveLAngularSpeedDegPerSec = 45.0;
-		private const double MoveLAngularAccelDegPerSec2 = 180.0; // reaches vMax in 0.25 s
+		private const double MoveLAngularAccelDegPerSec2 = 180.0;  // reaches vMax in 0.25 s
+		private const double MoveLAngularJerkDegPerSec3  = 1800.0; // reaches aMax in 0.10 s
 		private DispatcherTimer _moveLTimer;
 		private double[] _moveLStart;
 		private double[] _moveLTarget;
@@ -59,6 +61,7 @@ namespace Hmi
 		private const int MoveJTickMs = 3;
 		private const double MoveJSpeedDegPerSec  = 60.0;
 		private const double MoveJAccelDegPerSec2 = 240.0;        // reaches vMax in 0.25 s
+		private const double MoveJJerkDegPerSec3  = 2400.0;       // reaches aMax in 0.10 s
 		private DispatcherTimer _moveJTimer;
 		private double[] _moveJStart;
 		private double[] _moveJTarget;
@@ -493,8 +496,18 @@ namespace Hmi
 			// keep the longer one as the dominant profile. The other dimension follows
 			// the same s(t), which means it moves slower than its limit — that is the
 			// price of synchronisation, and guarantees no dimension ever exceeds its cap.
-			var linPlan = OccBridge.MotionProfile.CreateTrapezoidal( linearDist,  MoveLLinearSpeedMmPerSec,  MoveLLinearAccelMmPerSec2 );
-			var angPlan = OccBridge.MotionProfile.CreateTrapezoidal( angularDist, MoveLAngularSpeedDegPerSec, MoveLAngularAccelDegPerSec2 );
+			// Plan a jerk-limited S-curve profile for each dimension under its own
+			// vMax / aMax / jMax, then keep the longer one as the dominant profile. The
+			// other dimension follows the same s(t), which means it moves slower than
+			// its limit — that is the price of synchronisation, and guarantees no
+			// dimension ever exceeds its cap. Compared to a trapezoidal profile the
+			// S-curve adds a constant-jerk phase on each end so the acceleration
+			// itself ramps continuously, eliminating the velocity "kink" at phase
+			// boundaries; useful when the robot is mounted on a flexible structure.
+			var linPlan = OccBridge.MotionProfile.CreateSCurve(
+				linearDist,  MoveLLinearSpeedMmPerSec,  MoveLLinearAccelMmPerSec2,  MoveLLinearJerkMmPerSec3 );
+			var angPlan = OccBridge.MotionProfile.CreateSCurve(
+				angularDist, MoveLAngularSpeedDegPerSec, MoveLAngularAccelDegPerSec2, MoveLAngularJerkDegPerSec3 );
 			OccBridge.MotionProfile profile = ( linPlan.DurationSec >= angPlan.DurationSec ) ? linPlan : angPlan;
 
 			if( profile.DurationSec < 1.0e-6 ) {
@@ -636,11 +649,17 @@ namespace Hmi
 			// dominant. All axes follow the same s(t) so they reach the endpoint
 			// together; the faster axes simply move below their cap. Per-axis caps
 			// (roadmap 2.12) will refine which axis ends up dominant.
+			// Slowest-axis pacing under jerk-limited S-curve: plan a profile for every
+			// axis using shared vMax / aMax / jMax, pick the one with the longest
+			// duration as dominant. All axes follow the same s(t) so they reach the
+			// endpoint together; the faster axes simply move below their cap. Per-axis
+			// caps (roadmap 2.12) will refine which axis ends up dominant.
 			OccBridge.MotionProfile dominant = null;
 			double maxDelta = 0.0;
 			for( int i = 0; i < JointCount; i++ ) {
 				double delta = Math.Abs( targetJoints[ i ] - _jointAngles[ i ] );
-				var p = OccBridge.MotionProfile.CreateTrapezoidal( delta, MoveJSpeedDegPerSec, MoveJAccelDegPerSec2 );
+				var p = OccBridge.MotionProfile.CreateSCurve(
+					delta, MoveJSpeedDegPerSec, MoveJAccelDegPerSec2, MoveJJerkDegPerSec3 );
 				if( dominant == null || p.DurationSec > dominant.DurationSec ) {
 					dominant = p;
 					maxDelta = delta;

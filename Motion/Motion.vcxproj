@@ -70,10 +70,12 @@
   <ItemGroup>
     <ClInclude Include="LinearProfile.h" />
     <ClInclude Include="MotionProfile.h" />
+    <ClInclude Include="SCurveProfile.h" />
     <ClInclude Include="TrapezoidalProfile.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="LinearProfile.cpp" />
+    <ClCompile Include="SCurveProfile.cpp" />
     <ClCompile Include="TrapezoidalProfile.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

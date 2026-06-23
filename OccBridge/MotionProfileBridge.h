@@ -39,6 +39,11 @@ namespace OccBridge {
 		// code degrades to a triangular profile when the distance is too short to
 		// reach vMax, so callers do not need to detect that case explicitly.
 
+		static MotionProfile^ CreateSCurve( double distance, double vMax, double aMax, double jMax );
+		// Plans a jerk-limited 7-segment S-curve via SCurveProfile::plan(). The
+		// native code degrades to fewer segments when aMax or vMax cannot be
+		// reached, so callers do not need to detect those cases explicitly.
+
 	private:
 		MotionProfile( Motion::Profile* native );
 		// Internal constructor used by the static factories; takes ownership of
