@@ -5,6 +5,7 @@
 #include "../Interaction/CameraController.h"
 #include "../Interaction/MouseInteractor.h"
 #include "../Kinematics/IkSolver.h"
+#include "../Kinematics/AnalyticalIkSolver.h"
 #include "../Kinematics/RobotKinematics.h"
 #include "../Kinematics/RobotPartDef.h"
 #include "../Kinematics/TcpPoseSolver.h"
@@ -279,7 +280,15 @@ int RobotSceneFacade::solveTcpIk( const double targetXyzRpy[ 6 ],
 		}
 	}
 
-	const IkResult res = solveIkDls( m_impl->kin, target, seedDeg, opts );
+	// Try the closed-form Pieper solver first (O(1), exact). It rejects geometries
+	// without a spherical wrist by returning InvalidConfiguration; in that case we
+	// fall back to the iterative DLS solver so the facade keeps working for any
+	// 6-DOF arm that might be loaded later. solveIkAnalytical does not mutate kin,
+	// so no snapshot/restore is needed for the fast path.
+	IkResult res = solveIkAnalytical( m_impl->kin, target, seedDeg, opts );
+	if( res.status != IkStatus::Converged ) {
+		res = solveIkDls( m_impl->kin, target, seedDeg, opts );
+	}
 
 	for( int i = 0; i < 6; ++i ) {
 		outAnglesDeg[ i ] = res.jointAnglesDeg[ i ];
