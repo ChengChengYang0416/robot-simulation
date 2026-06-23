@@ -72,15 +72,19 @@
   <ItemGroup>
     <ClInclude Include="AnalyticalIkSolver.h" />
     <ClInclude Include="IkSolver.h" />
+    <ClInclude Include="Jacobian.h" />
     <ClInclude Include="RobotKinematics.h" />
     <ClInclude Include="RobotPartDef.h" />
+    <ClInclude Include="SingularityMonitor.h" />
     <ClInclude Include="TcpPoseSolver.h" />
     <ClInclude Include="TransformBuilder.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AnalyticalIkSolver.cpp" />
     <ClCompile Include="IkSolver.cpp" />
+    <ClCompile Include="Jacobian.cpp" />
     <ClCompile Include="RobotKinematics.cpp" />
+    <ClCompile Include="SingularityMonitor.cpp" />
     <ClCompile Include="TcpPoseSolver.cpp" />
     <ClCompile Include="TransformBuilder.cpp" />
   </ItemGroup>

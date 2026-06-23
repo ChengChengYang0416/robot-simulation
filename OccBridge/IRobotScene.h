@@ -86,6 +86,21 @@ public:
 	// regardless of outcome; the caller is responsible for committing the solution
 	// via setJointAngle() when it accepts the result.
 
+	[[nodiscard]] virtual bool getManipulability( double outMetrics[ 5 ],
+												  int*   outKind,
+												  int*   outLevel ) const = 0;
+	// Computes Jacobian-based singularity metrics for the current joint state.
+	// outMetrics layout (mm^3 / rad^6 for the full det, dimensionless for ratios):
+	//   [0] manipulability        = |det(J)|
+	//   [1] wristManipulability   = |det(J[3:6, 3:6])|
+	//   [2] armManipulability     = |det(J[0:3, 0:3])|
+	//   [3] wristRatio            = wristManipulability                  (dimensionless)
+	//   [4] armRatio              = armManipulability / L_ref^3          (dimensionless)
+	// outKind  = SingularityKind  (0 None, 1 Wrist, 2 Elbow, 3 Shoulder, 4 Combined)
+	// outLevel = SingularityLevel (0 Normal, 1 Warning, 2 Critical)
+	// Returns false when no robot is loaded or outMetrics is null. The scene's joint
+	// state is not modified.
+
 	// ---- Camera ----------------------------------------------------------------
 
 	virtual void fitAll() = 0;

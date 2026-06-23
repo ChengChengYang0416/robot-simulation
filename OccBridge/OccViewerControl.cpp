@@ -233,6 +233,33 @@ namespace OccBridge {
 		return status;
 	}
 
+	bool OccViewerControl::GetManipulability( cli::array<double>^ outMetrics,
+											  int% outKind,
+											  int% outLevel )
+	// Marshals the singularity report from the native facade. outKind / outLevel are
+	// always written (defaulting to 0 = None / Normal) so caller code can read them
+	// unconditionally even when the call returns false.
+	{
+		outKind  = 0;
+		outLevel = 0;
+		if( !m_bInitialized || outMetrics == nullptr || outMetrics->Length < 5 ) {
+			return false;
+		}
+
+		double metrics[ 5 ]{};
+		int    kind  = 0;
+		int    level = 0;
+		if( !m_pNative->getManipulability( metrics, &kind, &level ) ) {
+			return false;
+		}
+		for( int i = 0; i < 5; ++i ) {
+			outMetrics[ i ] = metrics[ i ];
+		}
+		outKind  = kind;
+		outLevel = level;
+		return true;
+	}
+
 	void OccViewerControl::FitAllView( void )
 	// Forwards fit-all to the native viewer
 	{

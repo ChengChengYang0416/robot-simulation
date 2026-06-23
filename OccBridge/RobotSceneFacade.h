@@ -37,6 +37,10 @@ public:
 								  const double jointMaxDeg[ 6 ],
 								  double       outAnglesDeg[ 6 ] ) override;
 
+	[[nodiscard]] bool getManipulability( double outMetrics[ 5 ],
+										  int*   outKind,
+										  int*   outLevel ) const override;
+
 	void clearScene() override;
 
 	void fitAll() override;

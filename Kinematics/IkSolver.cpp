@@ -1,5 +1,6 @@
 #include "IkSolver.h"
 
+#include "Jacobian.h"
 #include "RobotKinematics.h"
 #include "TransformBuilder.h"
 
@@ -19,23 +20,9 @@ struct Vec3
 	double z;
 };
 
-[[nodiscard]] Vec3 cross( const Vec3& a, const Vec3& b ) noexcept
-{
-	return { a.y * b.z - a.z * b.y,
-			 a.z * b.x - a.x * b.z,
-			 a.x * b.y - a.y * b.x };
-}
-
 [[nodiscard]] Vec3 translationOf( const gp_Trsf& t ) noexcept
 {
 	return { t.Value( 1, 4 ), t.Value( 2, 4 ), t.Value( 3, 4 ) };
-}
-
-[[nodiscard]] Vec3 zAxisOf( const gp_Trsf& t ) noexcept
-// The local +Z direction of frame t expressed in world coordinates: the third column
-// of the rotation block. For a DH joint this is the rotation axis.
-{
-	return { t.Value( 1, 3 ), t.Value( 2, 3 ), t.Value( 3, 3 ) };
 }
 
 void orientationError( const gp_Trsf& target, const gp_Trsf& current, double out[ 3 ] ) noexcept
@@ -177,24 +164,6 @@ IkResult solveIkDls( RobotKinematics&             kin,
 		return result;  // status defaults to InvalidConfiguration
 	}
 
-	// Resolve axis-index (1..6) -> part index once; the IK loop then only does table lookups.
-	int axisPart[ kDof ];
-	for( int i = 0; i < kDof; ++i ) {
-		axisPart[ i ] = -1;
-	}
-	for( const auto& m : axisMap ) {
-		const int axisIdx = m.first;   // 1-based by convention in RobotKinematics
-		const int partIdx = m.second;
-		if( axisIdx >= 1 && axisIdx <= kDof && partIdx >= 0 && partIdx < static_cast<int>( parts.size() ) ) {
-			axisPart[ axisIdx - 1 ] = partIdx;
-		}
-	}
-	for( int i = 0; i < kDof; ++i ) {
-		if( axisPart[ i ] < 0 ) {
-			return result;  // axis map does not cover all 6 axes
-		}
-	}
-
 	const Vec3 pTarget = translationOf( targetTcp );
 	const double lambdaSq = options.damping * options.damping;
 
@@ -206,15 +175,20 @@ IkResult solveIkDls( RobotKinematics&             kin,
 	}
 
 	for( int iter = 0; iter < options.maxIterations; ++iter ) {
-		// 1. Forward kinematics: push q into kin and recompute cumulative frames.
+		// 1. Forward kinematics + Jacobian: push q into kin, then delegate the FK
+		//    cache update and the 6x6 J construction to the shared Jacobian module.
 		for( int i = 0; i < kDof; ++i ) {
 			kin.setJointAngle( i, q[ i ] );
 		}
-		const auto& cum = kin.computeCumulative();
-		if( cum.empty() ) {
-			return result;
+		Jacobian::Matrix6x6 Jmat;
+		if( !Jacobian::build( kin, Jmat ) ) {
+			return result;  // configuration became invalid mid-flight
 		}
 
+		// FK output is needed once more for the pose error term; the Jacobian
+		// builder has already populated the cumulative-frame cache via
+		// computeCumulative(), so this is just a const re-fetch (no recompute).
+		const auto& cum = kin.computeCumulative();
 		const gp_Trsf& tcpTrsf = cum.back();
 		const Vec3     pTcp    = translationOf( tcpTrsf );
 
@@ -242,34 +216,13 @@ IkResult solveIkDls( RobotKinematics&             kin,
 			return result;
 		}
 
-		// 3. Build 6x6 geometric Jacobian using the parent frame of each driven part.
-		double J[ kDof ][ kDof ];  // rows 0..5 = [vx vy vz wx wy wz], cols 0..5 = axes
-		for( int i = 0; i < kDof; ++i ) {
-			const int   partIdx   = axisPart[ i ];
-			const int   parentIdx = parts[ partIdx ].parentIdx;
-			gp_Trsf     jointFrame;  // identity if no parent (axis 1 at world origin)
-			if( parentIdx >= 0 && parentIdx < static_cast<int>( cum.size() ) ) {
-				jointFrame = cum[ parentIdx ];
-			}
-			const Vec3 zi   = zAxisOf( jointFrame );
-			const Vec3 pi   = translationOf( jointFrame );
-			const Vec3 r    = { pTcp.x - pi.x, pTcp.y - pi.y, pTcp.z - pi.z };
-			const Vec3 jv   = cross( zi, r );
-			J[ 0 ][ i ] = jv.x;
-			J[ 1 ][ i ] = jv.y;
-			J[ 2 ][ i ] = jv.z;
-			J[ 3 ][ i ] = zi.x;
-			J[ 4 ][ i ] = zi.y;
-			J[ 5 ][ i ] = zi.z;
-		}
-
-		// 4. A = J*J^T + lambda^2 * I (6x6 symmetric positive-definite for lambda > 0).
+		// 3. A = J*J^T + lambda^2 * I (6x6 symmetric positive-definite for lambda > 0).
 		double A[ kDof ][ kDof ];
 		for( int r = 0; r < kDof; ++r ) {
 			for( int c = 0; c < kDof; ++c ) {
 				double sum = 0.0;
 				for( int k = 0; k < kDof; ++k ) {
-					sum += J[ r ][ k ] * J[ c ][ k ];
+					sum += Jmat.m[ r ][ k ] * Jmat.m[ c ][ k ];
 				}
 				A[ r ][ c ] = sum;
 			}
@@ -286,11 +239,11 @@ IkResult solveIkDls( RobotKinematics&             kin,
 			return result;
 		}
 
-		// 5. delta_q (rad) = J^T * y, clamp per-axis to maxStepDeg, accumulate in degrees.
+		// 4. delta_q (rad) = J^T * y, clamp per-axis to maxStepDeg, accumulate in degrees.
 		for( int i = 0; i < kDof; ++i ) {
 			double dq = 0.0;
 			for( int r = 0; r < kDof; ++r ) {
-				dq += J[ r ][ i ] * y[ r ];
+				dq += Jmat.m[ r ][ i ] * y[ r ];
 			}
 			double dqDeg = dq / Transform::kDegToRad;
 			if( dqDeg > options.maxStepDeg ) {

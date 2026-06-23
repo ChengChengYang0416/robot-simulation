@@ -8,6 +8,7 @@
 #include "../Kinematics/AnalyticalIkSolver.h"
 #include "../Kinematics/RobotKinematics.h"
 #include "../Kinematics/RobotPartDef.h"
+#include "../Kinematics/SingularityMonitor.h"
 #include "../Kinematics/TcpPoseSolver.h"
 #include "../Kinematics/TransformBuilder.h"
 #include "../Scene/SceneRepository.h"
@@ -309,6 +310,39 @@ int RobotSceneFacade::solveTcpIk( const double targetXyzRpy[ 6 ],
 	default:
 		return static_cast<int>( IkSolveStatus::InvalidConfig );
 	}
+}
+
+bool RobotSceneFacade::getManipulability( double outMetrics[ 5 ],
+										  int*   outKind,
+										  int*   outLevel ) const
+// Evaluates the singularity monitor at the current joint state. SingularityMonitor::
+// evaluate() calls computeCumulative() (idempotent for the same q) so the scene's
+// joint angles are not perturbed and there is no need to snapshot/restore.
+{
+	if( outMetrics == nullptr ) {
+		return false;
+	}
+	if( m_impl->kin.parts().empty() || m_impl->kin.axisToPartMap().empty() ) {
+		return false;
+	}
+
+	const SingularityReport rpt = OccBridge::evaluate( m_impl->kin );
+	if( !rpt.valid ) {
+		return false;
+	}
+
+	outMetrics[ 0 ] = rpt.manipulability;
+	outMetrics[ 1 ] = rpt.wristManipulability;
+	outMetrics[ 2 ] = rpt.armManipulability;
+	outMetrics[ 3 ] = rpt.wristRatio;
+	outMetrics[ 4 ] = rpt.armRatio;
+	if( outKind != nullptr ) {
+		*outKind = static_cast<int>( rpt.kind );
+	}
+	if( outLevel != nullptr ) {
+		*outLevel = static_cast<int>( rpt.level );
+	}
+	return true;
 }
 
 void RobotSceneFacade::setViewIso()

@@ -46,15 +46,12 @@ struct IkResult
 // Damped Least Squares IK for a 6-DOF revolute arm.
 //
 // Algorithm (per iteration):
-//   1. Apply current q to kin and call computeCumulative() (FK in pre-allocated buffers).
-//   2. Build 6x6 geometric Jacobian J from the cumulative DH frames:
-//        J_v[:,i] = z_i x (p_tcp - p_i)   (linear part, mm/rad)
-//        J_w[:,i] = z_i                   (angular part, 1/rad)
-//      where z_i, p_i come from the parent frame of the part driven by axis i.
-//   3. Compose 6-vector pose error e = [target.p - p_tcp ; axis*angle(R_target * R_tcp^T)].
-//   4. Solve (J*J^T + lambda^2 * I) * y = e via Gaussian elimination (6x6 SPD).
-//   5. delta_q (rad) = J^T * y; clamp per-axis to maxStepDeg, convert to deg, accumulate.
-//   6. Apply joint limits (if enabled) and repeat.
+//   1. Apply current q to kin and delegate to Jacobian::build() (runs FK in
+//      pre-allocated buffers and emits the 6x6 geometric Jacobian J).
+//   2. Compose 6-vector pose error e = [target.p - p_tcp ; axis*angle(R_target * R_tcp^T)].
+//   3. Solve (J*J^T + lambda^2 * I) * y = e via Gaussian elimination (6x6 SPD).
+//   4. delta_q (rad) = J^T * y; clamp per-axis to maxStepDeg, convert to deg, accumulate.
+//   5. Apply joint limits (if enabled) and repeat.
 //
 // Leaves kin's joint angles set to the final iterate (whether converged or not) and
 // performs zero heap allocations in the iteration loop. Returns status + final pose

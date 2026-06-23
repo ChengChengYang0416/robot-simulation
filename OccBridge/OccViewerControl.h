@@ -61,6 +61,21 @@ namespace OccBridge {
 		// 2 = NotConverged, 3 = InvalidConfig. The scene's joint state is left untouched
 		// on every outcome; the caller commits the solution via SetJointAngle when 0.
 
+		bool GetManipulability( cli::array<double>^ outMetrics,
+								[System::Runtime::InteropServices::Out] int% outKind,
+								[System::Runtime::InteropServices::Out] int% outLevel );
+		// Computes Jacobian-based singularity metrics for the current joint state.
+		// outMetrics must be length >= 5:
+		//   [0] manipulability        = |det(J)|
+		//   [1] wristManipulability   = |det(J[3:6, 3:6])|
+		//   [2] armManipulability     = |det(J[0:3, 0:3])|
+		//   [3] wristRatio            (dimensionless, ~|sin q5| at wrist sing)
+		//   [4] armRatio              (dimensionless, normalised by L_ref^3)
+		// outKind  = 0 None, 1 Wrist, 2 Elbow, 3 Shoulder, 4 Combined.
+		// outLevel = 0 Normal, 1 Warning, 2 Critical.
+		// Returns false when the viewer is not initialized, no robot is loaded, or
+		// outMetrics is shorter than 5.
+
 		void ClearScene( void );
 		// Removes all objects from the 3D scene
 
