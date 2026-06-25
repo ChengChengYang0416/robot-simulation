@@ -47,6 +47,18 @@ void toZyxDeg( const Quat& q, double& outRxDeg, double& outRyDeg, double& outRzD
 // a velocity profile so that the planned duration matches the actual arc length
 // rather than a per-axis-max approximation.
 
+[[nodiscard]] Quat fromAxisAngleRad( double ax, double ay, double az, double angleRad ) noexcept;
+// Axis-angle constructor: returns the unit quaternion representing a rotation
+// of `angleRad` around the unit-vector axis (ax, ay, az). The axis is *assumed*
+// normalised — for Cartesian JOG the caller passes one of {(1,0,0),(0,1,0),
+// (0,0,1)} so this is free; arbitrary-axis callers must normalise first.
+
+[[nodiscard]] Quat multiply( const Quat& a, const Quat& b ) noexcept;
+// Hamilton product q = a * b. Composition convention: rotating a vector v by
+// `multiply(qDelta, qCurrent)` is equivalent to rotating v by qCurrent first
+// then applying qDelta in the *world* frame. For tool-local increments swap
+// the operands (`multiply(qCurrent, qDelta)`).
+
 }  // namespace Quaternion
 
 }  // namespace OccBridge

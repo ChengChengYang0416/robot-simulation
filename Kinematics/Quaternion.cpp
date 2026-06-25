@@ -147,5 +147,35 @@ double angleBetweenRad( const Quat& a, const Quat& b ) noexcept
 	return 2.0 * std::acos( cosTheta );
 }
 
+Quat fromAxisAngleRad( double ax, double ay, double az, double angleRad ) noexcept
+// Standard axis-angle form: q = (cos(θ/2), sin(θ/2) * axis). The half-angle
+// comes from the double-cover of SO(3) by unit quaternions — rotating a vector
+// by q uses q * v * q⁻¹, so each application contributes θ/2 + θ/2 = θ.
+{
+	const double half = 0.5 * angleRad;
+	const double s    = std::sin( half );
+
+	Quat q;
+	q.w = std::cos( half );
+	q.x = ax * s;
+	q.y = ay * s;
+	q.z = az * s;
+	return q;
+}
+
+Quat multiply( const Quat& a, const Quat& b ) noexcept
+// Hamilton product, expanded scalar/vector form:
+//   (a.w, a.v) * (b.w, b.v) = (a.w*b.w − a.v·b.v, a.w*b.v + b.w*a.v + a.v × b.v)
+// Non-commutative: a*b ≠ b*a in general. Order matters for rotation composition
+// (see header note for world-vs-tool frame interpretation).
+{
+	Quat r;
+	r.w = a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z;
+	r.x = a.w * b.x + a.x * b.w + a.y * b.z - a.z * b.y;
+	r.y = a.w * b.y - a.x * b.z + a.y * b.w + a.z * b.x;
+	r.z = a.w * b.z + a.x * b.y - a.y * b.x + a.z * b.w;
+	return r;
+}
+
 }  // namespace Quaternion
 }  // namespace OccBridge

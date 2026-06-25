@@ -7,6 +7,7 @@ namespace Motion {
 
 namespace OccBridge {
 	class PoseInterpolator;
+	class CartesianJogStepper;
 }
 
 using namespace System;
@@ -154,6 +155,39 @@ namespace OccBridge {
 
 	private:
 		::OccBridge::PoseInterpolator* m_pNative;
+	};
+
+	public ref class CartesianJog
+	{
+	// Managed wrapper around OccBridge::CartesianJogStepper (native Kinematics lib).
+	// One instance lives in MainWindow for the duration of the session; the JOG
+	// timer tick calls Step() with the latest TCP pose and held button to get the
+	// next desired pose, then routes it through SolveTcpIk. Speed caps are
+	// settable properties so an HMI speed-multiplier slider can rescale on the
+	// fly without re-creating the wrapper.
+	//
+	// Managed name shortened (Jog vs JogStepper) to match the existing PoseInterp
+	// / SpeedScaler abbreviation pattern in this bridge.
+	public:
+		CartesianJog();
+		CartesianJog( double linSpeedMmPerSec, double angSpeedDegPerSec );
+
+		~CartesianJog();
+		!CartesianJog();
+
+		property double LinSpeedMmPerSec  { double get(); void set( double value ); }
+		property double AngSpeedDegPerSec { double get(); void set( double value ); }
+
+		bool Step( cli::array<double>^ currentPose, int axisIndex, int dir, double dt,
+				   cli::array<double>^ outPose );
+		// currentPose / outPose must each contain at least 6 elements
+		// [x, y, z, rx, ry, rz] in mm and degrees. axisIndex 0..2 → world XYZ
+		// translation, 3..5 → world Rx/Ry/Rz rotation. dir must be ±1. Returns
+		// false (and leaves outPose untouched) on null / short / out-of-range
+		// input so the caller can use the return as a "stop jog" signal.
+
+	private:
+		::OccBridge::CartesianJogStepper* m_pNative;
 	};
 
 }  // namespace OccBridge

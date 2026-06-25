@@ -71,6 +71,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="AnalyticalIkSolver.h" />
+    <ClInclude Include="CartesianJogStepper.h" />
     <ClInclude Include="IkSolver.h" />
     <ClInclude Include="Jacobian.h" />
     <ClInclude Include="PoseInterpolator.h" />
@@ -83,6 +84,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AnalyticalIkSolver.cpp" />
+    <ClCompile Include="CartesianJogStepper.cpp" />
     <ClCompile Include="IkSolver.cpp" />
     <ClCompile Include="Jacobian.cpp" />
     <ClCompile Include="PoseInterpolator.cpp" />

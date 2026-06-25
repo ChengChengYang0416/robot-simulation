@@ -31,10 +31,24 @@ namespace Hmi
 		// JOG runtime
 		private const double JogSpeedDegPerSec = 30.0;
 		private const int JogTickMs = 30;
+		// Cartesian JOG (World frame) speed caps. Conservative defaults — the
+		// player is open-loop joystick-style with no S-curve, so faster speeds
+		// would feel twitchy on a mouse hold. A future speed-multiplier slider
+		// can rescale via _cartesianJog.LinSpeedMmPerSec / .AngSpeedDegPerSec.
+		private const double JogCartLinSpeedMmPerSec  = 50.0;
+		private const double JogCartAngSpeedDegPerSec = 20.0;
+		private enum JogFrame { Joint, World }
 		private DispatcherTimer _jogTimer;
+		private JogFrame _jogFrame = JogFrame.Joint;
 		private int _jogAxis = -1;
 		private int _jogDir;
 		private DateTime _jogLastTick;
+		// Cartesian JOG scratch state. Held as fields so the 30 ms tick allocates
+		// nothing on the managed heap (which would otherwise feed gen0 collections
+		// and undermine the 1.9 monitor chart noise floor).
+		private OccBridge.CartesianJog _cartesianJog;
+		private readonly double[] _jogCartTarget    = new double[ 6 ];
+		private readonly double[] _jogCartOutAngles = new double[ JointCount ];
 
 		// MoveL runtime: linear interpolation of [X, Y, Z, A, B, C] from start to target,
 		// running IK each frame and committing the joint solution to the scene.
@@ -322,11 +336,11 @@ namespace Hmi
 				return;
 			}
 			var btn = sender as System.Windows.Controls.Button;
-			if( btn == null || !TryParseJogTag( btn.Tag, out int axis, out int dir ) ) {
+			if( btn == null || !TryParseJogTag( btn.Tag, out JogFrame frame, out int axis, out int dir ) ) {
 				return;
 			}
 			btn.CaptureMouse();
-			StartJog( axis, dir );
+			StartJog( frame, axis, dir );
 		}
 
 		private void JogBtn_Up( object sender, System.Windows.Input.MouseButtonEventArgs e )
@@ -348,8 +362,15 @@ namespace Hmi
 			}
 		}
 
-		private static bool TryParseJogTag( object tag, out int axis, out int dir )
+		private static bool TryParseJogTag( object tag, out JogFrame frame, out int axis, out int dir )
 		{
+			// Two accepted formats:
+			//   "axis:dir"        → Joint frame (legacy / 6-axis joint buttons)
+			//   "W:axis:dir"      → World frame (Cartesian JOG, axis 0..5 = X/Y/Z/Rx/Ry/Rz)
+			// Keeping the legacy 2-part form means the existing joint buttons need no
+			// XAML retag, and the new World buttons advertise their frame explicitly
+			// in the tag itself so a misclick can't drive Joint logic into World axes.
+			frame = JogFrame.Joint;
 			axis = -1;
 			dir = 0;
 			var s = tag as string;
@@ -357,17 +378,34 @@ namespace Hmi
 				return false;
 			}
 			var parts = s.Split( ':' );
-			if( parts.Length != 2 ) {
-				return false;
+			if( parts.Length == 2 ) {
+				return int.TryParse( parts[ 0 ], out axis ) && int.TryParse( parts[ 1 ], out dir );
 			}
-			return int.TryParse( parts[ 0 ], out axis ) && int.TryParse( parts[ 1 ], out dir );
+			if( parts.Length == 3 ) {
+				if( parts[ 0 ] == "W" ) {
+					frame = JogFrame.World;
+				}
+				else if( parts[ 0 ] == "J" ) {
+					frame = JogFrame.Joint;
+				}
+				else {
+					return false;
+				}
+				return int.TryParse( parts[ 1 ], out axis ) && int.TryParse( parts[ 2 ], out dir );
+			}
+			return false;
 		}
 
-		private void StartJog( int axis, int dir )
+		private void StartJog( JogFrame frame, int axis, int dir )
 		{
-			if( axis < 0 || axis >= JointCount || dir == 0 ) {
+			// Both frames address 0..5 (joint index vs world Cartesian channel) so
+			// the axis range check collapses to a single bound. dir == 0 is rejected
+			// up front to keep CartesianJogStepper::step from having to special-case
+			// a zero direction on every tick.
+			if( axis < 0 || axis >= 6 || dir == 0 ) {
 				return;
 			}
+			_jogFrame = frame;
 			_jogAxis = axis;
 			_jogDir = dir;
 			_jogLastTick = DateTime.UtcNow;
@@ -398,13 +436,43 @@ namespace Hmi
 			double dt = ( now - _jogLastTick ).TotalSeconds;
 			_jogLastTick = now;
 
-			double next = _jointAngles[ _jogAxis ] + _jogDir * JogSpeedDegPerSec * dt;
-			next = Math.Max( _jointMin[ _jogAxis ], Math.Min( _jointMax[ _jogAxis ], next ) );
+			if( _jogFrame == JogFrame.Joint ) {
+				double next = _jointAngles[ _jogAxis ] + _jogDir * JogSpeedDegPerSec * dt;
+				next = Math.Max( _jointMin[ _jogAxis ], Math.Min( _jointMax[ _jogAxis ], next ) );
 
-			if( Math.Abs( next - _jointAngles[ _jogAxis ] ) < 1e-6 ) {
-				return; // already at limit
+				if( Math.Abs( next - _jointAngles[ _jogAxis ] ) < 1e-6 ) {
+					return; // already at limit
+				}
+				ApplyJointAngle( _jogAxis, next );
+				return;
 			}
-			ApplyJointAngle( _jogAxis, next );
+
+			// World-frame Cartesian JOG: build the next desired TCP pose via the
+			// shared stepper (position lerp / quaternion-composed orientation),
+			// then route through IK. IK failure → stop and surface the reason; the
+			// hand-on-button operator gets immediate feedback if the wrist hit a
+			// singularity or workspace boundary instead of silently freezing.
+			if( _cartesianJog == null ) {
+				_cartesianJog = new OccBridge.CartesianJog( JogCartLinSpeedMmPerSec, JogCartAngSpeedDegPerSec );
+			}
+			var pose = _viewer.GetTcpPose();
+			if( pose == null || pose.Length < 6 ) {
+				StopJog();
+				return;
+			}
+			if( !_cartesianJog.Step( pose, _jogAxis, _jogDir, dt, _jogCartTarget ) ) {
+				StopJog();
+				return;
+			}
+			int status = _viewer.SolveTcpIk( _jogCartTarget, _jointMin, _jointMax, _jogCartOutAngles );
+			if( status != 0 ) {
+				StopJog();
+				SetStatus( status == 2
+					? "Cartesian JOG stopped: IK did not converge (workspace limit or singularity)."
+					: "Cartesian JOG stopped: invalid IK configuration." );
+				return;
+			}
+			ApplyAllJointAngles( _jogCartOutAngles );
 		}
 
 		private void ApplyJointAngle( int axis, double angle )

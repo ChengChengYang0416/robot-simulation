@@ -6,6 +6,7 @@
 #include "../Motion/SCurveProfile.h"
 #include "../Motion/SingularitySpeedScaler.h"
 #include "../Kinematics/PoseInterpolator.h"
+#include "../Kinematics/CartesianJogStepper.h"
 
 namespace OccBridge {
 
@@ -197,6 +198,74 @@ void PoseInterp::Sample( double s, cli::array<double>^ outAbcDeg )
 double PoseInterp::TotalAngleDeg::get()
 {
 	return ( m_pNative != nullptr ) ? m_pNative->totalAngleDeg() : 0.0;
+}
+
+// =================== CartesianJog (world-frame JOG stepper) =================== //
+
+CartesianJog::CartesianJog()
+	: m_pNative( new ::OccBridge::CartesianJogStepper() )
+{}
+
+CartesianJog::CartesianJog( double linSpeedMmPerSec, double angSpeedDegPerSec )
+	: m_pNative( new ::OccBridge::CartesianJogStepper( linSpeedMmPerSec, angSpeedDegPerSec ) )
+{}
+
+CartesianJog::~CartesianJog()
+{
+	this->!CartesianJog();
+}
+
+CartesianJog::!CartesianJog()
+{
+	if( m_pNative != nullptr ) {
+		delete m_pNative;
+		m_pNative = nullptr;
+	}
+}
+
+double CartesianJog::LinSpeedMmPerSec::get()
+{
+	return ( m_pNative != nullptr ) ? m_pNative->linSpeed() : 0.0;
+}
+
+void CartesianJog::LinSpeedMmPerSec::set( double value )
+{
+	if( m_pNative != nullptr ) {
+		m_pNative->setLinSpeed( value );
+	}
+}
+
+double CartesianJog::AngSpeedDegPerSec::get()
+{
+	return ( m_pNative != nullptr ) ? m_pNative->angSpeed() : 0.0;
+}
+
+void CartesianJog::AngSpeedDegPerSec::set( double value )
+{
+	if( m_pNative != nullptr ) {
+		m_pNative->setAngSpeed( value );
+	}
+}
+
+bool CartesianJog::Step( cli::array<double>^ currentPose, int axisIndex, int dir, double dt,
+						 cli::array<double>^ outPose )
+{
+	if( m_pNative == nullptr ) {
+		return false;
+	}
+	if( currentPose == nullptr || outPose == nullptr ) {
+		return false;
+	}
+	if( currentPose->Length < 6 || outPose->Length < 6 ) {
+		return false;
+	}
+
+	// Pin the managed arrays for the duration of the native call so the GC
+	// cannot relocate them mid-step. The step itself is O(1) so the pin window
+	// is microscopic and contention with concurrent GC is a non-issue.
+	pin_ptr<double> pCur = &currentPose[ 0 ];
+	pin_ptr<double> pOut = &outPose[ 0 ];
+	return m_pNative->step( pCur, axisIndex, dir, dt, pOut );
 }
 
 }  // namespace OccBridge

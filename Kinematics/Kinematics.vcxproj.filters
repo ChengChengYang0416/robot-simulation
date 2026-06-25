@@ -41,6 +41,9 @@
     <ClInclude Include="PoseInterpolator.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="CartesianJogStepper.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="RobotKinematics.cpp">
@@ -68,6 +71,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="PoseInterpolator.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CartesianJogStepper.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
