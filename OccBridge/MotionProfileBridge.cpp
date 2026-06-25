@@ -5,6 +5,7 @@
 #include "../Motion/TrapezoidalProfile.h"
 #include "../Motion/SCurveProfile.h"
 #include "../Motion/SingularitySpeedScaler.h"
+#include "../Kinematics/PoseInterpolator.h"
 
 namespace OccBridge {
 
@@ -138,6 +139,64 @@ bool SpeedScaler::ShouldAnnounceCritical()
 double SpeedScaler::Combine( double wristRatio, double armRatio )
 {
 	return Motion::SingularitySpeedScaler::combine( wristRatio, armRatio );
+}
+
+// =================== PoseInterp (slerp wrapper) =================== //
+
+PoseInterp::PoseInterp()
+	: m_pNative( new ::OccBridge::PoseInterpolator() )
+{}
+
+PoseInterp::~PoseInterp()
+{
+	this->!PoseInterp();
+}
+
+PoseInterp::!PoseInterp()
+{
+	if( m_pNative != nullptr ) {
+		delete m_pNative;
+		m_pNative = nullptr;
+	}
+}
+
+void PoseInterp::Begin( cli::array<double>^ startAbcDeg, cli::array<double>^ targetAbcDeg )
+{
+	// Defensive guards: HMI code in mid-refactor can pass null or short arrays;
+	// silently ignore so the player can detect the no-op via TotalAngleDeg == 0.
+	if( m_pNative == nullptr ) {
+		return;
+	}
+	if( startAbcDeg == nullptr || targetAbcDeg == nullptr ) {
+		return;
+	}
+	if( startAbcDeg->Length < 3 || targetAbcDeg->Length < 3 ) {
+		return;
+	}
+	m_pNative->begin( startAbcDeg[ 0 ], startAbcDeg[ 1 ], startAbcDeg[ 2 ],
+					  targetAbcDeg[ 0 ], targetAbcDeg[ 1 ], targetAbcDeg[ 2 ] );
+}
+
+void PoseInterp::Sample( double s, cli::array<double>^ outAbcDeg )
+{
+	if( m_pNative == nullptr ) {
+		return;
+	}
+	if( outAbcDeg == nullptr || outAbcDeg->Length < 3 ) {
+		return;
+	}
+	double rx = 0.0;
+	double ry = 0.0;
+	double rz = 0.0;
+	m_pNative->sample( s, rx, ry, rz );
+	outAbcDeg[ 0 ] = rx;
+	outAbcDeg[ 1 ] = ry;
+	outAbcDeg[ 2 ] = rz;
+}
+
+double PoseInterp::TotalAngleDeg::get()
+{
+	return ( m_pNative != nullptr ) ? m_pNative->totalAngleDeg() : 0.0;
 }
 
 }  // namespace OccBridge

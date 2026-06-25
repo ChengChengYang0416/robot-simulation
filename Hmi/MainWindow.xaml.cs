@@ -59,8 +59,13 @@ namespace Hmi
 		// linear ramp so deceleration is smooth.
 		private double _moveLVirtualSec;
 		private DateTime _moveLLastTickUtc;
-		private OccBridge.SpeedScaler _moveLScaler;
-
+		private OccBridge.SpeedScaler _moveLScaler;		// Quaternion-slerp orientation interpolator: replaces the per-axis ABC
+		// lerp so long-distance orientation changes follow the geodesic great
+		// circle with constant angular velocity instead of zig-zagging through
+		// Euler space. Scratch buffer holds the per-tick sample output and is
+		// reused so the tick allocates nothing on the managed heap.
+		private OccBridge.PoseInterp _moveLPoseInterp;
+		private readonly double[] _moveLAbcScratch = new double[ 3 ];
 		// MoveJ runtime: joint-space interpolation. One-shot IK at the start resolves the
 		// target TCP pose into joint angles; the tick then lerps each axis independently
 		// with the slowest axis pacing the total duration so all axes finish together.
@@ -510,10 +515,20 @@ namespace Hmi
 			double dz = target[ 2 ] - current[ 2 ];
 			double linearDist = Math.Sqrt( dx * dx + dy * dy + dz * dz );
 
-			double dA = NormalizeAngleDeg( target[ 3 ] - current[ 3 ] );
-			double dB = NormalizeAngleDeg( target[ 4 ] - current[ 4 ] );
-			double dC = NormalizeAngleDeg( target[ 5 ] - current[ 5 ] );
-			double angularDist = Math.Max( Math.Abs( dA ), Math.Max( Math.Abs( dB ), Math.Abs( dC ) ) );
+			// True geodesic rotation angle between start and target orientations,
+			// computed once by the quaternion slerp helper. Replaces the old
+			// max(|dA|, |dB|, |dC|) approximation, which over-estimated whenever
+			// the three Euler deltas pointed along non-parallel axes and was
+			// outright wrong near gimbal lock. Sizing the profile with the true
+			// arc length means MoveL durations now match the actual orientation
+			// path the wrist will walk.
+			if( _moveLPoseInterp == null ) {
+				_moveLPoseInterp = new OccBridge.PoseInterp();
+			}
+			var startAbc  = new[] { current[ 3 ], current[ 4 ], current[ 5 ] };
+			var targetAbc = new[] { target[ 3 ],  target[ 4 ],  target[ 5 ]  };
+			_moveLPoseInterp.Begin( startAbc, targetAbc );
+			double angularDist = _moveLPoseInterp.TotalAngleDeg;
 
 			// Plan a trapezoidal profile for each dimension under its own vMax/aMax, then
 			// keep the longer one as the dominant profile. The other dimension follows
@@ -545,7 +560,7 @@ namespace Hmi
 			_moveLStart  = new[] { current[ 0 ], current[ 1 ], current[ 2 ],
 								   current[ 3 ], current[ 4 ], current[ 5 ] };
 			_moveLTarget = new[] { target[ 0 ], target[ 1 ], target[ 2 ],
-								   current[ 3 ] + dA, current[ 4 ] + dB, current[ 5 ] + dC };
+								   target[ 3 ],  target[ 4 ],  target[ 5 ]  };
 			_moveLProfile = profile;
 			_moveLT0 = DateTime.UtcNow;
 			_moveLVirtualSec  = 0.0;
@@ -612,9 +627,19 @@ namespace Hmi
 			bool reachedEnd = _moveLVirtualSec >= _moveLProfile.DurationSec;
 
 			var interp = new double[ 6 ];
-			for( int i = 0; i < 6; i++ ) {
+			// Position: straight Cartesian lerp under the same s(t) as orientation,
+			// so the two stay phase-locked and reach the endpoint together.
+			for( int i = 0; i < 3; i++ ) {
 				interp[ i ] = _moveLStart[ i ] + s * ( _moveLTarget[ i ] - _moveLStart[ i ] );
 			}
+			// Orientation: slerp on the segment endpoints set up in BtnMoveL_Click.
+			// The scratch buffer is reused so this tick still allocates nothing
+			// (the `new double[6] interp` above is the only per-tick allocation and
+			// is small enough to land in gen0 every cycle).
+			_moveLPoseInterp.Sample( s, _moveLAbcScratch );
+			interp[ 3 ] = _moveLAbcScratch[ 0 ];
+			interp[ 4 ] = _moveLAbcScratch[ 1 ];
+			interp[ 5 ] = _moveLAbcScratch[ 2 ];
 
 			var outAngles = new double[ JointCount ];
 			int status = _viewer.SolveTcpIk( interp, _jointMin, _jointMax, outAngles );

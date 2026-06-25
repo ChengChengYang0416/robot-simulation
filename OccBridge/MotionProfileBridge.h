@@ -5,6 +5,10 @@ namespace Motion {
 	class SingularitySpeedScaler;
 }
 
+namespace OccBridge {
+	class PoseInterpolator;
+}
+
 using namespace System;
 
 namespace OccBridge {
@@ -111,6 +115,45 @@ namespace OccBridge {
 
 	private:
 		Motion::SingularitySpeedScaler* m_pNative;
+	};
+
+	public ref class PoseInterp
+	{
+	// Managed wrapper around OccBridge::PoseInterpolator (native Kinematics lib).
+	// One instance per trajectory player (typically MoveL); Begin() seeds the
+	// segment endpoints once and Sample() returns the slerp-interpolated ZYX
+	// Euler angles at the given progress fraction. Replaces the old element-wise
+	// ABC lerp in MoveLTimer_Tick so long-distance orientation changes follow
+	// the geodesic great-circle arc with constant angular velocity instead of
+	// drifting off the shortest path.
+	//
+	// Managed name shortened to avoid a name clash with the native class, which
+	// lives in the same `OccBridge` namespace as this ref class.
+	public:
+		PoseInterp();
+
+		~PoseInterp();
+		!PoseInterp();
+
+		void Begin( cli::array<double>^ startAbcDeg, cli::array<double>^ targetAbcDeg );
+		// Both arrays must contain at least 3 elements [rx, ry, rz] in degrees.
+		// Silently does nothing for null or short input so a half-initialised
+		// MoveL player does not crash the UI thread; the player should check
+		// TotalAngleDeg afterwards to detect the no-op case.
+
+		void Sample( double s, cli::array<double>^ outAbcDeg );
+		// Fills outAbcDeg[0..2] with the interpolated [rx, ry, rz] in degrees.
+		// Out-of-range s is clamped to [0, 1] inside the native code so the
+		// caller can pass a slightly-over-1.0 virtual clock value safely.
+
+		property double TotalAngleDeg { double get(); }
+		// True geodesic rotation angle between the begin endpoints, in degrees.
+		// Use as the angular-distance argument when planning a motion profile so
+		// the duration matches the actual arc length rather than a per-axis-max
+		// approximation.
+
+	private:
+		::OccBridge::PoseInterpolator* m_pNative;
 	};
 
 }  // namespace OccBridge
