@@ -126,17 +126,17 @@
                                         <Button    Grid.Row="2" Grid.Column="2" Content="+" Tag="W:2:1"  Style="{StaticResource JogBtn}" PreviewMouseLeftButtonDown="JogBtn_Down" PreviewMouseLeftButtonUp="JogBtn_Up" MouseLeave="JogBtn_Leave"/>
                                         <TextBlock Grid.Row="2" Grid.Column="3" VerticalAlignment="Center" Margin="6,0,0,0" Foreground="#888" Text="mm"/>
 
-                                        <TextBlock Grid.Row="3" Grid.Column="0" VerticalAlignment="Center" Text="Rx"/>
+                                        <TextBlock Grid.Row="3" Grid.Column="0" VerticalAlignment="Center" Text="A"/>
                                         <Button    Grid.Row="3" Grid.Column="1" Content="-" Tag="W:3:-1" Style="{StaticResource JogBtn}" PreviewMouseLeftButtonDown="JogBtn_Down" PreviewMouseLeftButtonUp="JogBtn_Up" MouseLeave="JogBtn_Leave"/>
                                         <Button    Grid.Row="3" Grid.Column="2" Content="+" Tag="W:3:1"  Style="{StaticResource JogBtn}" PreviewMouseLeftButtonDown="JogBtn_Down" PreviewMouseLeftButtonUp="JogBtn_Up" MouseLeave="JogBtn_Leave"/>
                                         <TextBlock Grid.Row="3" Grid.Column="3" VerticalAlignment="Center" Margin="6,0,0,0" Foreground="#888" Text="°"/>
 
-                                        <TextBlock Grid.Row="4" Grid.Column="0" VerticalAlignment="Center" Text="Ry"/>
+                                        <TextBlock Grid.Row="4" Grid.Column="0" VerticalAlignment="Center" Text="B"/>
                                         <Button    Grid.Row="4" Grid.Column="1" Content="-" Tag="W:4:-1" Style="{StaticResource JogBtn}" PreviewMouseLeftButtonDown="JogBtn_Down" PreviewMouseLeftButtonUp="JogBtn_Up" MouseLeave="JogBtn_Leave"/>
                                         <Button    Grid.Row="4" Grid.Column="2" Content="+" Tag="W:4:1"  Style="{StaticResource JogBtn}" PreviewMouseLeftButtonDown="JogBtn_Down" PreviewMouseLeftButtonUp="JogBtn_Up" MouseLeave="JogBtn_Leave"/>
                                         <TextBlock Grid.Row="4" Grid.Column="3" VerticalAlignment="Center" Margin="6,0,0,0" Foreground="#888" Text="°"/>
 
-                                        <TextBlock Grid.Row="5" Grid.Column="0" VerticalAlignment="Center" Text="Rz"/>
+                                        <TextBlock Grid.Row="5" Grid.Column="0" VerticalAlignment="Center" Text="C"/>
                                         <Button    Grid.Row="5" Grid.Column="1" Content="-" Tag="W:5:-1" Style="{StaticResource JogBtn}" PreviewMouseLeftButtonDown="JogBtn_Down" PreviewMouseLeftButtonUp="JogBtn_Up" MouseLeave="JogBtn_Leave"/>
                                         <Button    Grid.Row="5" Grid.Column="2" Content="+" Tag="W:5:1"  Style="{StaticResource JogBtn}" PreviewMouseLeftButtonDown="JogBtn_Down" PreviewMouseLeftButtonUp="JogBtn_Up" MouseLeave="JogBtn_Leave"/>
                                         <TextBlock Grid.Row="5" Grid.Column="3" VerticalAlignment="Center" Margin="6,0,0,0" Foreground="#888" Text="°"/>
