@@ -89,6 +89,13 @@ namespace Hmi
 		private const double MoveJSpeedDegPerSec  = 60.0;
 		private const double MoveJAccelDegPerSec2 = 240.0;        // reaches vMax in 0.25 s
 		private const double MoveJJerkDegPerSec3  = 2400.0;       // reaches aMax in 0.10 s
+		// Reset-to-home replays through the MoveJ S-curve at conservative caps —
+		// pressing "Home" is a safety reset, not a race; halving the MoveJ caps
+		// keeps the shape ratio identical so the motion still feels smooth, just
+		// slower (~12 s for a full ±170° J1 swing instead of ¶6 s).
+		private const double HomeReturnSpeedDegPerSec  = 30.0;
+		private const double HomeReturnAccelDegPerSec2 = 120.0;
+		private const double HomeReturnJerkDegPerSec3  = 1200.0;
 		private DispatcherTimer _moveJTimer;
 		private double[] _moveJStart;
 		private double[] _moveJTarget;
@@ -526,7 +533,20 @@ namespace Hmi
 
 		private void BtnResetHome_Click( object sender, RoutedEventArgs e )
 		{
-			ResetSliders();
+			// Two reset paths:
+			//   No robot loaded → just zero the HMI cache (no player available).
+			//   Robot loaded   → play a smooth MoveJ back to the all-zeros pose so the
+			//                    operator sees the motion (no instant teleport — also
+			//                    avoids fake velocity / acceleration spikes that would
+			//                    contaminate the 1.9 monitor chart).
+			if( !_robotLoaded ) {
+				ResetSliders();
+				return;
+			}
+			var home = new double[ JointCount ];  // implicit zero-initialised
+			StartMoveJToJointTarget( home,
+				HomeReturnSpeedDegPerSec, HomeReturnAccelDegPerSec2, HomeReturnJerkDegPerSec3,
+				"MoveJ Home" );
 		}
 
 		private void BtnCopyCurrentPose_Click( object sender, RoutedEventArgs e )
@@ -792,22 +812,34 @@ namespace Hmi
 				return;
 			}
 
-			// Slowest-axis pacing under trapezoidal limits: plan a profile for every
-			// axis using shared vMax/aMax, pick the one with the longest duration as
-			// dominant. All axes follow the same s(t) so they reach the endpoint
-			// together; the faster axes simply move below their cap. Per-axis caps
-			// (roadmap 2.12) will refine which axis ends up dominant.
+			StartMoveJToJointTarget( targetJoints,
+				MoveJSpeedDegPerSec, MoveJAccelDegPerSec2, MoveJJerkDegPerSec3,
+				"MoveJ trap" );
+		}
+
+		private bool StartMoveJToJointTarget( double[] targetJoints,
+											  double speedDegPerSec,
+											  double accelDegPerSec2,
+											  double jerkDegPerSec3,
+											  string statusLabel )
+		{
+			// Joint-space player kernel. Callers that already hold a resolved joint
+			// vector (BtnMoveJ_Click after IK, BtnResetHome_Click with all-zeros,
+			// future Waypoint queue with stored teach points) plug straight in here
+			// and inherit the S-curve / dominant-axis pacing / singularity-aware
+			// scaler infrastructure without duplicating the planning boilerplate.
+			//
 			// Slowest-axis pacing under jerk-limited S-curve: plan a profile for every
-			// axis using shared vMax / aMax / jMax, pick the one with the longest
+			// axis using the supplied vMax / aMax / jMax, pick the one with the longest
 			// duration as dominant. All axes follow the same s(t) so they reach the
-			// endpoint together; the faster axes simply move below their cap. Per-axis
+			// endpoint together; faster axes simply move below their cap. Per-axis
 			// caps (roadmap 2.12) will refine which axis ends up dominant.
 			OccBridge.MotionProfile dominant = null;
 			double maxDelta = 0.0;
 			for( int i = 0; i < JointCount; i++ ) {
 				double delta = Math.Abs( targetJoints[ i ] - _jointAngles[ i ] );
 				var p = OccBridge.MotionProfile.CreateSCurve(
-					delta, MoveJSpeedDegPerSec, MoveJAccelDegPerSec2, MoveJJerkDegPerSec3 );
+					delta, speedDegPerSec, accelDegPerSec2, jerkDegPerSec3 );
 				if( dominant == null || p.DurationSec > dominant.DurationSec ) {
 					dominant = p;
 					maxDelta = delta;
@@ -815,15 +847,16 @@ namespace Hmi
 			}
 
 			if( dominant == null || dominant.DurationSec < 1.0e-6 ) {
-				SetStatus( "MoveJ: already at target." );
-				return;
+				SetStatus( $"{statusLabel}: already at target." );
+				return false;
 			}
 
+			StopJog();
 			StopMoveL( silent: true );
 			StopMoveJ( silent: true );
 
 			_moveJStart   = (double[])_jointAngles.Clone();
-			_moveJTarget  = targetJoints;
+			_moveJTarget  = (double[])targetJoints.Clone();
 			_moveJProfile = dominant;
 			_moveJT0 = DateTime.UtcNow;
 			_moveJVirtualSec  = 0.0;
@@ -841,7 +874,8 @@ namespace Hmi
 			}
 			_moveJTimer.Start();
 			UpdateStopButtonState();
-			SetStatus( $"MoveJ trap: max Δ {maxDelta:F1}° in {dominant.DurationSec:F2} s" );
+			SetStatus( $"{statusLabel}: max Δ {maxDelta:F1}° in {dominant.DurationSec:F2} s" );
+			return true;
 		}
 
 		private void MoveJTimer_Tick( object sender, EventArgs e )
