@@ -161,8 +161,12 @@ void TcpTrail::rebuildFrames()
 		return;
 	}
 
-	const int n = static_cast<int>( m_points.size() );
-	for( int i = 0; i < n; i += kTcpTrailFrameStride ) {
+	// Local helper: build + display a labelless trihedron at the given pose. The
+	// "X / Y / Z" text labels are suppressed because at trail densities the
+	// repeated text triplets fight the polyline for screen real estate and
+	// drop legibility; the per-axis colours (X=blue, Y=green, Z=red — matched
+	// to the TCP trihedron) already convey orientation unambiguously.
+	auto displayFrame = [ this ]( const gp_Trsf& pose ) {
 		Handle( Geom_Axis2Placement ) axis = new Geom_Axis2Placement(
 			gp_Pnt( 0, 0, 0 ), gp_Dir( 0, 0, 1 ), gp_Dir( 1, 0, 0 ) );
 		Handle( AIS_Trihedron ) tri = new AIS_Trihedron( axis );
@@ -170,24 +174,26 @@ void TcpTrail::rebuildFrames()
 		tri->SetDatumPartColor( Prs3d_DatumParts_XAxis, Quantity_Color( Quantity_NOC_BLUE ) );
 		tri->SetDatumPartColor( Prs3d_DatumParts_YAxis, Quantity_Color( Quantity_NOC_GREEN ) );
 		tri->SetDatumPartColor( Prs3d_DatumParts_ZAxis, Quantity_Color( Quantity_NOC_RED ) );
-		tri->SetLocalTransformation( m_points[ i ] );
+		// Suppress the "X / Y / Z" text labels. SetDrawLabels lives on
+		// Prs3d_DatumAspect which AIS_Trihedron exposes through its Attributes()
+		// drawer. Must be set before Display() so the first render already
+		// reflects the choice.
+		const Handle( Prs3d_DatumAspect ) datum = tri->Attributes()->DatumAspect();
+		datum->SetDrawLabels( false );
+		tri->SetLocalTransformation( pose );
 		m_context->Display( tri, Standard_False );
 		m_frames.push_back( tri );
+	};
+
+	const int n = static_cast<int>( m_points.size() );
+	for( int i = 0; i < n; i += kTcpTrailFrameStride ) {
+		displayFrame( m_points[ i ] );
 	}
 	// Always include the most recent sample even when (n - 1) is not on a
 	// stride boundary, so the head of the trail shows the current orientation.
 	const int tail = n - 1;
 	if( tail > 0 && ( tail % kTcpTrailFrameStride ) != 0 ) {
-		Handle( Geom_Axis2Placement ) axis = new Geom_Axis2Placement(
-			gp_Pnt( 0, 0, 0 ), gp_Dir( 0, 0, 1 ), gp_Dir( 1, 0, 0 ) );
-		Handle( AIS_Trihedron ) tri = new AIS_Trihedron( axis );
-		tri->SetSize( kTcpTrailFrameSize );
-		tri->SetDatumPartColor( Prs3d_DatumParts_XAxis, Quantity_Color( Quantity_NOC_BLUE ) );
-		tri->SetDatumPartColor( Prs3d_DatumParts_YAxis, Quantity_Color( Quantity_NOC_GREEN ) );
-		tri->SetDatumPartColor( Prs3d_DatumParts_ZAxis, Quantity_Color( Quantity_NOC_RED ) );
-		tri->SetLocalTransformation( m_points[ tail ] );
-		m_context->Display( tri, Standard_False );
-		m_frames.push_back( tri );
+		displayFrame( m_points[ tail ] );
 	}
 }
 
