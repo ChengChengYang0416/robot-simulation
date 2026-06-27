@@ -17,12 +17,18 @@
     <ClInclude Include="StepLoader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="TcpTrail.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="SceneRepository.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="StepLoader.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="TcpTrail.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

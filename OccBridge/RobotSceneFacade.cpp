@@ -13,6 +13,7 @@
 #include "../Kinematics/TransformBuilder.h"
 #include "../Scene/SceneRepository.h"
 #include "../Scene/StepLoader.h"
+#include "../Scene/TcpTrail.h"
 #include "../Viewer/ViewportContext.h"
 #include <Quantity_Color.hxx>
 
@@ -23,6 +24,7 @@ struct RobotSceneFacade::Impl
 	Viewer::ViewportContext viewport;
 
 	Scene::SceneRepository repo;
+	Scene::TcpTrail        trail;
 	Interaction::MouseInteractor mouse;
 	Interaction::CameraController camera;
 	OccBridge::RobotKinematics kin;
@@ -51,6 +53,7 @@ void RobotSceneFacade::initialize( HWND hwnd )
 {
 	m_impl->viewport.initialize( hwnd );
 	m_impl->repo.attach( m_impl->viewport.context() );
+	m_impl->trail.attach( m_impl->viewport.context() );
 	m_impl->mouse.attach( m_impl->viewport.view(), m_impl->viewport.context() );
 	m_impl->camera.attach( m_impl->viewport.view() );
 }
@@ -204,6 +207,7 @@ void RobotSceneFacade::updateRobotTransforms()
 
 	if( auto tcp = m_impl->kin.tcpFrame() ) {
 		m_impl->repo.setTcpTransform( *tcp );
+		m_impl->trail.pushPose( *tcp );
 	}
 
 	m_impl->repo.updateViewer();
@@ -214,10 +218,33 @@ void RobotSceneFacade::clearScene()
 // the part-to-slot map. The repository keeps its context attachment for reuse.
 {
 	m_impl->repo.clear();
+	m_impl->trail.clear();
 	m_impl->kin.configure( {}, {} );
 	m_impl->partToSlot.clear();
 	m_impl->repo.updateViewer();
 	redraw();
+}
+
+void RobotSceneFacade::setTcpTrailMode( int mode )
+// Translates the int wire value to Scene::TcpTrail::Mode. Unknown values are
+// silently coerced to Off rather than asserted so a future managed enum tweak
+// can't crash the player. The trail's setMode does its own no-op short-circuit
+// when the value is unchanged, so the call is cheap to re-invoke from the menu.
+{
+	auto value = static_cast<Scene::TcpTrail::Mode>( mode );
+	if( value != Scene::TcpTrail::Mode::Off
+	 	&& value != Scene::TcpTrail::Mode::Polyline
+	 	&& value != Scene::TcpTrail::Mode::PolylineWithFrames ) {
+		value = Scene::TcpTrail::Mode::Off;
+	}
+	m_impl->trail.setMode( value );
+}
+
+void RobotSceneFacade::clearTcpTrail()
+// Operator-driven "erase what's on screen, keep recording from now on". Distinct
+// from setTcpTrailMode(Off) which also stops sampling.
+{
+	m_impl->trail.clear();
 }
 
 void RobotSceneFacade::fitAll()

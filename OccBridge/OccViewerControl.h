@@ -88,6 +88,15 @@ namespace OccBridge {
 		void SetViewTop( void );
 		// Switches to a top-down view projection
 
+		void SetTcpTrailMode( int mode );
+		// Switches the TCP travel-history visualisation. mode matches
+		// IRobotScene::TcpTrailMode (0 = Off, 1 = Polyline, 2 = PolylineWithFrames).
+		// Unknown values fall back to Off in the native layer.
+
+		void ClearTcpTrail( void );
+		// Erases the displayed TCP trail. Sampling continues if mode != Off, so the
+		// trail will rebuild from the next joint update onwards.
+
 		bool SaveScreenshot( String^ path );
 		// Saves the current view to an image file (PNG / JPG / BMP / TIFF inferred
 		// from the path extension). Returns false when the viewer is not initialized,

@@ -72,10 +72,12 @@
   <ItemGroup>
     <ClInclude Include="SceneRepository.h" />
     <ClInclude Include="StepLoader.h" />
+    <ClInclude Include="TcpTrail.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="SceneRepository.cpp" />
     <ClCompile Include="StepLoader.cpp" />
+    <ClCompile Include="TcpTrail.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Utility\Utility.vcxproj">

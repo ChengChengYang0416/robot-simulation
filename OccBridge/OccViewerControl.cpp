@@ -284,6 +284,24 @@ namespace OccBridge {
 		}
 	}
 
+	void OccViewerControl::SetTcpTrailMode( int mode )
+	// Forwards the trail visualisation mode to the native scene. Safe to call
+	// before initialisation: the early-return mirrors the other view-control
+	// methods so menu wiring during XAML construction is harmless.
+	{
+		if( m_bInitialized ) {
+			m_pNative->setTcpTrailMode( mode );
+		}
+	}
+
+	void OccViewerControl::ClearTcpTrail( void )
+	// Clears the displayed TCP trail without disturbing the current mode.
+	{
+		if( m_bInitialized ) {
+			m_pNative->clearTcpTrail();
+		}
+	}
+
 	bool OccViewerControl::SaveScreenshot( String^ path )
 	// Marshals the managed path to a native wide string and forwards to the native dumper
 	{

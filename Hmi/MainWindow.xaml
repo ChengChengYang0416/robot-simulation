@@ -20,6 +20,14 @@
                 <MenuItem Name="MenuTop" Header="Top" IsCheckable="True" Click="BtnTop_Click"/>
                 <Separator/>
                 <MenuItem Header="Fit All" Click="BtnFitAll_Click"/>
+                <Separator/>
+                <MenuItem Header="TCP Trail">
+                    <MenuItem Name="MenuTrailOff"      Header="Off"                       IsCheckable="True" IsChecked="True" Click="MenuTrailMode_Click" Tag="0"/>
+                    <MenuItem Name="MenuTrailLine"     Header="TCP Path"                  IsCheckable="True"                   Click="MenuTrailMode_Click" Tag="1"/>
+                    <MenuItem Name="MenuTrailFrames"   Header="TCP Path + Frames"         IsCheckable="True"                   Click="MenuTrailMode_Click" Tag="2"/>
+                    <Separator/>
+                    <MenuItem Header="Clear Trail" Click="MenuTrailClear_Click"/>
+                </MenuItem>
             </MenuItem>
         </Menu>
 

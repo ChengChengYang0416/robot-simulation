@@ -47,6 +47,9 @@ public:
 	void setViewIso() override;
 	void setViewTop() override;
 
+	void setTcpTrailMode( int mode ) override;
+	void clearTcpTrail() override;
+
 	void onMouseDown( int x, int y, int button ) override;
 	void onMouseMove( int x, int y, int buttonMask ) override;
 	void onMouseUp() override;

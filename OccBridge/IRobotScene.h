@@ -107,6 +107,25 @@ public:
 	virtual void setViewIso() = 0;
 	virtual void setViewTop() = 0;
 
+	// ---- TCP trail visualisation ----------------------------------------------
+
+	enum class TcpTrailMode : int
+	{
+		Off                = 0,  // no display, no sampling
+		Polyline           = 1,  // TCP point trail only
+		PolylineWithFrames = 2,  // TCP trail + sub-sampled mini trihedrons
+	};
+
+	virtual void setTcpTrailMode( int mode ) = 0;
+	// Switches the TCP travel-history visualisation. mode is a TcpTrailMode cast
+	// to int (kept as int across the interface so C++/CLI callers don't have to
+	// translate the native enum). Off both stops sampling on subsequent joint
+	// changes and removes any previously drawn trail.
+
+	virtual void clearTcpTrail() = 0;
+	// Empties the TCP history buffer and removes the displayed polyline / frames
+	// from the viewer. Mode is preserved so the next joint update repopulates.
+
 	// ---- Mouse / interaction ---------------------------------------------------
 
 	virtual void onMouseDown( int x, int y, int button ) = 0;

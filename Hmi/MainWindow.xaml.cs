@@ -317,6 +317,40 @@ namespace Hmi
 			_viewer.FitAllView();
 		}
 
+		private void MenuTrailMode_Click( object sender, RoutedEventArgs e )
+		{
+			// Three checkable menu items share this handler and behave as a radio
+			// group via Tag = "0" / "1" / "2". Manual mutual-exclusion is needed
+			// because WPF's MenuItem doesn't ship a built-in radio mode; using
+			// GroupName like RadioButton would require nested controls inside
+			// MenuItems and break keyboard navigation.
+			if( !( sender is MenuItem clicked ) || clicked.Tag == null ) {
+				return;
+			}
+			if( !int.TryParse( clicked.Tag.ToString(), out int mode ) ) {
+				return;
+			}
+
+			// Re-checking the currently selected item should keep it checked
+			// (the IsCheckable toggle would otherwise uncheck it and leave the
+			// menu showing "no mode selected" which doesn't match reality).
+			clicked.IsChecked = true;
+			MenuTrailOff   .IsChecked = ( mode == 0 );
+			MenuTrailLine  .IsChecked = ( mode == 1 );
+			MenuTrailFrames.IsChecked = ( mode == 2 );
+
+			_viewer.SetTcpTrailMode( mode );
+			SetStatus( mode == 0 ? "TCP trail off."
+				: mode == 1 ? "TCP trail: path."
+				: "TCP trail: path + frames." );
+		}
+
+		private void MenuTrailClear_Click( object sender, RoutedEventArgs e )
+		{
+			_viewer.ClearTcpTrail();
+			SetStatus( "TCP trail cleared." );
+		}
+
 		private void SaveScreenshot_Executed( object sender, System.Windows.Input.ExecutedRoutedEventArgs e )
 		{
 			// Default filename includes a timestamp so rapid captures do not overwrite each other.
