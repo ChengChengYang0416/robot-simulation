@@ -103,10 +103,10 @@ namespace Hmi
 		private OccBridge.MotionProfile _moveJProfile;
 		private double _moveJVirtualSec;
 		private DateTime _moveJLastTickUtc;
-		private OccBridge.SpeedScaler _moveJScaler;
 
 		// Shared scratch buffer for OccViewerControl.GetManipulability(). Reused
-		// across MoveL / MoveJ ticks so the per-tick allocation cost is zero.
+		// across MoveL ticks so the per-tick allocation cost is zero. (MoveJ is
+		// joint-space and does not consult the Jacobian.)
 		private readonly double[] _singularityMetrics = new double[ 5 ];
 
 		private const string RegistryKey = @"SOFTWARE\RobotSimulation";
@@ -861,10 +861,6 @@ namespace Hmi
 			_moveJT0 = DateTime.UtcNow;
 			_moveJVirtualSec  = 0.0;
 			_moveJLastTickUtc = _moveJT0;
-			if( _moveJScaler == null ) {
-				_moveJScaler = new OccBridge.SpeedScaler();
-			}
-			_moveJScaler.Reset();
 
 			if( _moveJTimer == null ) {
 				_moveJTimer = new DispatcherTimer( DispatcherPriority.Render ) {
@@ -889,23 +885,14 @@ namespace Hmi
 			double   dt  = ( now - _moveJLastTickUtc ).TotalSeconds;
 			_moveJLastTickUtc = now;
 
-			double scale = 1.0;
-			if( _viewer.GetManipulability( _singularityMetrics, out int _, out int _ ) ) {
-				double ratio = OccBridge.SpeedScaler.Combine(
-					_singularityMetrics[ 3 ],
-					_singularityMetrics[ 4 ] );
-				scale = _moveJScaler.Scale( ratio );
-				if( _moveJScaler.ShouldAnnounceCritical() ) {
-					StopMoveJ( silent: true );
-					SetStatus( "MoveJ aborted: singularity (critical) — no safe path." );
-					MessageBox.Show( this,
-						"Trajectory stopped: the robot crossed into a critical singularity (wrist or elbow rank loss).\n\n"
-						+ "Adjust the target pose or seed posture to leave the degenerate region before retrying.",
-						"MoveJ", MessageBoxButton.OK, MessageBoxImage.Warning );
-					return;
-				}
-			}
-			_moveJVirtualSec += dt * scale;
+			// MoveJ is joint-space: target joints are already known, no IK runs each
+			// frame, the Jacobian is irrelevant. The path stays well-defined even when
+			// it crosses (or ends at) a singular configuration — e.g. the all-zeros
+			// home pose typically sits on the wrist singularity. So we advance virtual
+			// time at wall-clock rate without consulting the manipulability scaler;
+			// MoveL still uses it, and the StatusDashboard badge keeps updating from
+			// its own live query path.
+			_moveJVirtualSec += dt;
 
 			double s = _moveJProfile.Sample( _moveJVirtualSec );
 			bool reachedEnd = _moveJVirtualSec >= _moveJProfile.DurationSec;
