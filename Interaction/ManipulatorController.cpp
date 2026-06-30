@@ -1,5 +1,6 @@
 #include "ManipulatorController.h"
 
+#include <AIS_InteractiveContext.hxx>
 #include <AIS_Manipulator.hxx>
 #include <AIS_ManipulatorMode.hxx>
 #include <gp_Ax2.hxx>
@@ -135,15 +136,30 @@ void ManipulatorController::syncToPose( const gp_Trsf& tcpFrame )
 }
 
 bool ManipulatorController::onMouseDown( int x, int y, int button )
-// Mouse-down handling: only consume the event when drag is enabled AND the manipulator
-// already reports an active mode (hover-driven detection set it). Otherwise the camera
-// interactor takes over via the facade's fallback path.
+// Mouse-down handling: only consume the event when drag is enabled AND the cursor
+// is currently over one of the manipulator's handles. We rely on the hover state
+// that MouseInteractor::onMouseMove already refreshed on the last cursor motion —
+// re-running MoveTo inside the mouse-down handler re-enters the picking pipeline
+// during a Windows mouse event and was observed to corrupt the selection state
+// enough to crash StartRotation on the fallback camera-rotate path.
+//
+// HasActiveMode() alone is not enough: ModeActivationOnDetection sets currentMode on
+// hover but does NOT reliably clear it when the cursor leaves the handle. Without
+// the DetectedInteractive() check the camera interactor would be starved whenever
+// the user previously hovered the gizmo, even if the actual click is in empty space.
 {
-	constexpr int kLeftButton = 1048576;  // matches Interaction::MouseButton::Left
-	if( !m_enabled || m_manipulator.IsNull() || m_view.IsNull() ) {
+	constexpr int kLeftButton = 1048576;   // matches Interaction::MouseButton::Left
+	if( !m_enabled || m_manipulator.IsNull() || m_view.IsNull() || m_context.IsNull() ) {
 		return false;
 	}
 	if( button != kLeftButton ) {
+		return false;
+	}
+	if( !m_context->HasDetected() ) {
+		return false;
+	}
+	const Handle( AIS_InteractiveObject ) detected = m_context->DetectedInteractive();
+	if( detected.IsNull() || detected != m_manipulator ) {
 		return false;
 	}
 	if( !m_manipulator->HasActiveMode() ) {
