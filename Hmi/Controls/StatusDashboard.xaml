@@ -98,14 +98,13 @@
         </Grid>
 
         <GroupBox Header="Singularity" Margin="0,0,0,12">
-            <Grid Margin="10,8">
+            <Grid Margin="10,6">
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="60"/>
+                    <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
@@ -116,13 +115,14 @@
                                FontWeight="Bold" HorizontalAlignment="Center"/>
                 </Border>
 
-                <TextBlock Grid.Row="1" Grid.Column="0" Text="Wrist" VerticalAlignment="Center"/>
-                <TextBlock Grid.Row="1" Grid.Column="1" Name="TxtSingWrist" Text="—"
-                           HorizontalAlignment="Right" FontFamily="Consolas"/>
-
-                <TextBlock Grid.Row="2" Grid.Column="0" Text="Arm" VerticalAlignment="Center"/>
-                <TextBlock Grid.Row="2" Grid.Column="1" Name="TxtSingArm" Text="—"
-                           HorizontalAlignment="Right" FontFamily="Consolas"/>
+                <StackPanel Grid.Row="1" Grid.Column="0" Orientation="Horizontal">
+                    <TextBlock Text="Wrist " VerticalAlignment="Center"/>
+                    <TextBlock Name="TxtSingWrist" Text="—" FontFamily="Consolas" VerticalAlignment="Center"/>
+                </StackPanel>
+                <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <TextBlock Text="Arm " VerticalAlignment="Center"/>
+                    <TextBlock Name="TxtSingArm" Text="—" FontFamily="Consolas" VerticalAlignment="Center"/>
+                </StackPanel>
             </Grid>
         </GroupBox>
     </StackPanel>
