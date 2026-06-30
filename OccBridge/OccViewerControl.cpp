@@ -313,6 +313,39 @@ namespace OccBridge {
 		return m_pNative->saveScreenshot( nativePath.c_str() );
 	}
 
+	void OccViewerControl::SetJointLimits( cli::array<double>^ jointMinDeg,
+										   cli::array<double>^ jointMaxDeg )
+	// Marshals the managed limit arrays to native double[6] buffers and forwards to
+	// the facade. Passing a nullptr or wrong-length array clears the cached limits
+	// (the native side falls back to unbounded IK for drag mode).
+	{
+		if( !m_bInitialized ) {
+			return;
+		}
+		if( jointMinDeg == nullptr || jointMaxDeg == nullptr
+		 	|| jointMinDeg->Length < 6 || jointMaxDeg->Length < 6 ) {
+			m_pNative->setJointLimits( nullptr, nullptr );
+			return;
+		}
+		double minNative[ 6 ];
+		double maxNative[ 6 ];
+		for( int i = 0; i < 6; ++i ) {
+			minNative[ i ] = jointMinDeg[ i ];
+			maxNative[ i ] = jointMaxDeg[ i ];
+		}
+		m_pNative->setJointLimits( minNative, maxNative );
+	}
+
+	void OccViewerControl::SetDragEnabled( bool enabled )
+	// Forwards the drag-mode toggle to the native facade. Pre-initialization calls
+	// are swallowed so the HMI toggle can be wired up during XAML construction
+	// without risking a crash before OnHandleCreated runs.
+	{
+		if( m_bInitialized ) {
+			m_pNative->setDragEnabled( enabled );
+		}
+	}
+
 	void OccViewerControl::OnMouseDown( MouseEventArgs^ e )
 	// Ensures the control has keyboard focus, then forwards mouse-down to the native viewer
 	{

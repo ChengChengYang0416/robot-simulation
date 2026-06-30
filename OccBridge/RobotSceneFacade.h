@@ -2,6 +2,8 @@
 
 #include "IRobotScene.h"
 
+class gp_Trsf;
+
 namespace OccBridge {
 
 class RobotSceneFacade : public IRobotScene
@@ -41,6 +43,11 @@ public:
 										  int*   outKind,
 										  int*   outLevel ) const override;
 
+	void setJointLimits( const double jointMinDeg[ 6 ],
+						 const double jointMaxDeg[ 6 ] ) override;
+
+	void setDragEnabled( bool enabled ) override;
+
 	void clearScene() override;
 
 	void fitAll() override;
@@ -61,6 +68,13 @@ private:
 	void updateRobotTransforms();
 	// Recomputes cumulative DH transforms for every part and pushes them into the
 	// SceneRepository via the partToSlot map. Also refreshes the TCP trihedron pose.
+
+	void applyDragTarget( const gp_Trsf& targetWorld );
+	// Drag-mode IK callback: decomposes the manipulator's target world pose, runs
+	// analytical-first / DLS-fallback IK using the cached per-axis joint limits, and
+	// commits the solution via setJointAngles() on convergence. The gizmo's screen
+	// position remains where the operator dragged it; the FK pass triggered by the
+	// joint commit moves the trihedron to match.
 
 	struct Impl;
 	// PIMPL: defined in the .cpp so OCCT headers (V3d_View, AIS_Shape, ...) do not

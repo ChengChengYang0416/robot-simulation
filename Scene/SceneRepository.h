@@ -51,6 +51,14 @@ public:
 	// Returns the last TCP transform set via setTcpTransform, or std::nullopt if the
 	// trihedron has not been created or no transform has been applied yet.
 
+	[[nodiscard]] Handle( AIS_Trihedron ) tcpTrihedron() const
+	{
+		return m_tcpTrihedron;
+	}
+	// Returns the TCP trihedron handle so external interactors (e.g. AIS_Manipulator
+	// drag gizmo) can use it as an anchor. Returns a null handle until ensureTcpTrihedron
+	// has run; callers must check IsNull() before use.
+
 	void clear();
 	// Removes all shapes and the TCP trihedron from the context, then drops all internal
 	// Handles. The context itself remains attached; callers may reuse the repository.

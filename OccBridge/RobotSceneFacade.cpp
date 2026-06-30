@@ -3,6 +3,7 @@
 #include <vector>
 #include "RobotSceneFacade.h"
 #include "../Interaction/CameraController.h"
+#include "../Interaction/ManipulatorController.h"
 #include "../Interaction/MouseInteractor.h"
 #include "../Kinematics/IkSolver.h"
 #include "../Kinematics/AnalyticalIkSolver.h"
@@ -26,6 +27,7 @@ struct RobotSceneFacade::Impl
 	Scene::SceneRepository repo;
 	Scene::TcpTrail        trail;
 	Interaction::MouseInteractor mouse;
+	Interaction::ManipulatorController dragGizmo;
 	Interaction::CameraController camera;
 	OccBridge::RobotKinematics kin;
 
@@ -33,6 +35,13 @@ struct RobotSceneFacade::Impl
 	// load. Replaces the legacy convention of pushing null AIS_Shape placeholders
 	// to keep shapes vector in lock-step with part definitions.
 	std::vector<int> partToSlot;
+
+	// Per-axis joint limits cached for the drag-mode IK. Defaults to a very loose
+	// +/-360 deg window so that pre-load drag (no robot yet) does not constrain
+	// the solver; HMI overrides these via setJointLimits() after each robot load.
+	double jointMinDeg[ 6 ] = { -360.0, -360.0, -360.0, -360.0, -360.0, -360.0 };
+	double jointMaxDeg[ 6 ] = {  360.0,  360.0,  360.0,  360.0,  360.0,  360.0 };
+	bool   hasJointLimits   = false;
 };
 
 RobotSceneFacade::RobotSceneFacade()
@@ -55,6 +64,9 @@ void RobotSceneFacade::initialize( HWND hwnd )
 	m_impl->repo.attach( m_impl->viewport.context() );
 	m_impl->trail.attach( m_impl->viewport.context() );
 	m_impl->mouse.attach( m_impl->viewport.view(), m_impl->viewport.context() );
+	m_impl->dragGizmo.attach( m_impl->viewport.view(), m_impl->viewport.context() );
+	m_impl->dragGizmo.setTargetPoseHandler(
+		[ this ]( const gp_Trsf& target ) { this->applyDragTarget( target ); } );
 	m_impl->camera.attach( m_impl->viewport.view() );
 }
 
@@ -159,6 +171,10 @@ void RobotSceneFacade::endRobotArm()
 		m_impl->repo.ensureTcpTrihedron();
 	}
 	updateRobotTransforms();
+	// Wire the drag gizmo to the freshly-created trihedron so toggling drag mode after
+	// a load anchors the manipulator without an extra HMI call. The gizmo stays hidden
+	// until setDragEnabled(true) is called.
+	m_impl->dragGizmo.setAnchorObject( m_impl->repo.tcpTrihedron() );
 	fitAll();
 }
 
@@ -217,6 +233,12 @@ void RobotSceneFacade::clearScene()
 // Asks the repository to remove all displayed objects, then resets kinematics and
 // the part-to-slot map. The repository keeps its context attachment for reuse.
 {
+	// Drop the gizmo first so it does not retain a stale handle to the trihedron
+	// the repository is about to release. setEnabled(false) also detaches and erases
+	// the manipulator from the context; setAnchorObject(nullptr) clears the cached
+	// anchor so the next load can rebind cleanly.
+	m_impl->dragGizmo.setEnabled( false );
+	m_impl->dragGizmo.setAnchorObject( Handle( AIS_InteractiveObject )() );
 	m_impl->repo.clear();
 	m_impl->trail.clear();
 	m_impl->kin.configure( {}, {} );
@@ -385,20 +407,39 @@ void RobotSceneFacade::setViewTop()
 }
 
 void RobotSceneFacade::onMouseDown( int x, int y, int button )
-// Forwards to MouseInteractor, which owns the rotate / pan state machine.
+// Drag gizmo gets first refusal: when enabled and hovering a handle it consumes the
+// event so the camera does not also start rotating. Otherwise the camera interactor
+// takes over with its usual rotate / pan behaviour.
 {
+	if( m_impl->dragGizmo.onMouseDown( x, y, button ) ) {
+		return;
+	}
 	m_impl->mouse.onMouseDown( x, y, button );
 }
 
 void RobotSceneFacade::onMouseMove( int x, int y, int buttonMask )
-// Forwards to MouseInteractor; with no active drag it also drives hover highlight.
+// During an active drag the gizmo callback runs IK + commits joints itself, so the
+// mouse interactor is skipped to avoid double-handling. With no active drag the
+// gizmo returns false and hover-driven detection still happens inside the mouse
+// interactor's MoveTo() call.
 {
+	if( m_impl->dragGizmo.onMouseMove( x, y, buttonMask ) ) {
+		return;
+	}
 	m_impl->mouse.onMouseMove( x, y, buttonMask );
 }
 
 void RobotSceneFacade::onMouseUp()
-// Clears the active rotate / pan flags in MouseInteractor.
+// End-of-drag tear-down: cancel the manipulator's started transformation and snap
+// the gizmo back onto the actual post-IK TCP frame so subsequent drags start from
+// the geometric truth rather than where the cursor happened to land.
 {
+	if( m_impl->dragGizmo.onMouseUp() ) {
+		if( auto tcp = m_impl->repo.tcpFrame() ) {
+			m_impl->dragGizmo.syncToPose( *tcp );
+			m_impl->repo.updateViewer();
+		}
+	}
 	m_impl->mouse.onMouseUp();
 }
 
@@ -412,6 +453,85 @@ bool RobotSceneFacade::saveScreenshot( const wchar_t* filePath )
 // Forwards to ViewportContext, which owns the V3d_View and the framebuffer.
 {
 	return m_impl->viewport.saveScreenshot( filePath );
+}
+
+void RobotSceneFacade::setJointLimits( const double jointMinDeg[ 6 ],
+									   const double jointMaxDeg[ 6 ] )
+// Caches per-axis limits for the drag-mode IK. nullptr on either side clears the
+// cache so the drag path falls back to unbounded IK. HMI calls this once per robot
+// load; downstream solvers read the cached arrays inside applyDragTarget().
+{
+	if( jointMinDeg == nullptr || jointMaxDeg == nullptr ) {
+		m_impl->hasJointLimits = false;
+		return;
+	}
+	for( int i = 0; i < 6; ++i ) {
+		m_impl->jointMinDeg[ i ] = jointMinDeg[ i ];
+		m_impl->jointMaxDeg[ i ] = jointMaxDeg[ i ];
+	}
+	m_impl->hasJointLimits = true;
+}
+
+void RobotSceneFacade::setDragEnabled( bool enabled )
+// Toggles the drag gizmo. When enabling, snap the gizmo to the current TCP so the
+// first interaction starts from the real pose rather than the manipulator's default
+// origin. setEnabled() handles the no-anchor case (no robot loaded) by leaving the
+// gizmo hidden until endRobotArm() supplies one.
+{
+	m_impl->dragGizmo.setEnabled( enabled );
+	if( enabled ) {
+		if( auto tcp = m_impl->repo.tcpFrame() ) {
+			m_impl->dragGizmo.syncToPose( *tcp );
+			m_impl->repo.updateViewer();
+		}
+	}
+}
+
+void RobotSceneFacade::applyDragTarget( const gp_Trsf& targetWorld )
+// Drag callback: convert the manipulator's proposed pose to (XYZ, ZYX-RPY), run the
+// analytical IK first and fall back to DLS, commit joints on convergence. Failure
+// paths are silent here — the gizmo stays where the user dragged it so the operator
+// sees that the target was unreachable, and the next drag tick will try again.
+//
+// Per-axis limits are pulled from the cached arrays so the per-tick callback does
+// not need to take them as arguments (and so HMI does not have to push them every
+// frame). The seed is always the current joint vector, so the analytical solver's
+// 8-branch selector picks the configuration closest to the operator's current pose.
+{
+	if( m_impl->kin.parts().empty() || m_impl->kin.axisToPartMap().empty() ) {
+		return;
+	}
+
+	const auto seedDeg = m_impl->kin.jointAnglesDeg();
+
+	IkOptions opts;
+	opts.useJointLimits = m_impl->hasJointLimits;
+	if( opts.useJointLimits ) {
+		for( int i = 0; i < 6; ++i ) {
+			opts.jointMinDeg[ i ] = m_impl->jointMinDeg[ i ];
+			opts.jointMaxDeg[ i ] = m_impl->jointMaxDeg[ i ];
+		}
+	}
+
+	IkResult res = solveIkAnalytical( m_impl->kin, targetWorld, seedDeg, opts );
+	if( res.status != IkStatus::Converged ) {
+		res = solveIkDls( m_impl->kin, targetWorld, seedDeg, opts );
+	}
+	if( res.status != IkStatus::Converged ) {
+		// Restore the seed so a failed DLS run does not leave the kinematics in a
+		// half-stepped state (DLS mutates kin in place). The trihedron is repainted
+		// from kin via updateRobotTransforms on the next successful step.
+		for( int i = 0; i < 6; ++i ) {
+			m_impl->kin.setJointAngle( i, seedDeg[ i ] );
+		}
+		updateRobotTransforms();
+		return;
+	}
+
+	for( int i = 0; i < 6; ++i ) {
+		m_impl->kin.setJointAngle( i, res.jointAnglesDeg[ i ] );
+	}
+	updateRobotTransforms();
 }
 
 IRobotScene* createRobotScene()

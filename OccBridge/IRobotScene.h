@@ -101,6 +101,23 @@ public:
 	// Returns false when no robot is loaded or outMetrics is null. The scene's joint
 	// state is not modified.
 
+	virtual void setJointLimits( const double jointMinDeg[ 6 ],
+								 const double jointMaxDeg[ 6 ] ) = 0;
+	// Caches per-axis joint limits used by internally-driven IK paths (currently the
+	// drag-mode gizmo). Pass nullptr for either array to revert to unbounded IK. HMI
+	// callers that pass limits per call via solveTcpIk() do not need to invoke this;
+	// it exists so the facade can run IK from the mouse-move handler without taking
+	// the joint-limit arrays as parameters on every drag tick.
+
+	// ---- Drag mode (Phase 3.1) -------------------------------------------------
+
+	virtual void setDragEnabled( bool enabled ) = 0;
+	// Toggles the AIS_Manipulator 6-DoF drag gizmo. When enabled, the gizmo is
+	// attached to the TCP trihedron and mouse drags on its handles run IK against
+	// the requested pose; on convergence the joint angles are committed and the
+	// gizmo re-syncs to the new TCP frame. Enabling without a loaded robot leaves
+	// the gizmo hidden until endRobotArm() supplies an anchor.
+
 	// ---- Camera ----------------------------------------------------------------
 
 	virtual void fitAll() = 0;

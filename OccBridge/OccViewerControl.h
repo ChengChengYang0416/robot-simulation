@@ -102,6 +102,18 @@ namespace OccBridge {
 		// from the path extension). Returns false when the viewer is not initialized,
 		// the path is null/empty, or the underlying encoder fails.
 
+		void SetJointLimits( cli::array<double>^ jointMinDeg,
+							 cli::array<double>^ jointMaxDeg );
+		// Pushes per-axis joint limits down to the native scene so internally-driven
+		// IK paths (currently drag mode) stay within physical range. Each array must
+		// be length 6; pass nullptr on either side to clear the cached limits. HMI
+		// invokes this once per robot load.
+
+		void SetDragEnabled( bool enabled );
+		// Toggles the AIS_Manipulator 6-DoF drag gizmo. Safe to call before a robot
+		// is loaded: the gizmo only appears once the TCP trihedron exists as an
+		// anchor (i.e. after LoadRobotArm completes).
+
 	protected:
 		virtual void OnHandleCreated( EventArgs^ e ) override;
 		// Called once the window handle is created; initializes the OCCT viewer

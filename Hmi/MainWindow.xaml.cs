@@ -249,6 +249,10 @@ namespace Hmi
 					Dispatcher.PushFrame( frame );
 				} ) ) {
 					_robotLoaded = true;
+					// Push per-axis joint limits so internal IK callers (drag mode) stay
+					// within physical range without having to ferry the limit arrays
+					// across the bridge on every drag tick.
+					_viewer.SetJointLimits( _jointMin, _jointMax );
 					ResetSliders();
 					UpdateDashboard();
 					SetLastModelFolder( folderPath );
@@ -291,6 +295,11 @@ namespace Hmi
 		{
 			StopMoveL( silent: true );
 			StopMoveJ( silent: true );
+			// Reset the drag toggle before clearing so its event handler observes the
+			// not-loaded state and skips re-enabling the gizmo against a torn-down anchor.
+			if( TglDragEnable != null && TglDragEnable.IsChecked == true ) {
+				TglDragEnable.IsChecked = false;
+			}
 			_viewer.ClearScene();
 			_robotLoaded = false;
 			ResetSliders();
@@ -969,9 +978,17 @@ namespace Hmi
 
 		private void TglDragEnable_Changed( object sender, RoutedEventArgs e )
 		{
-			// TODO: integrate with viewer drag/gizmo once available.
+			// Drag mode requires a loaded robot to anchor the gizmo. Block the toggle
+			// otherwise to avoid a silently-invisible gizmo confusing the operator.
 			var enabled = TglDragEnable.IsChecked == true;
-			SetStatus( enabled ? "Drag enabled (stub)" : "Drag disabled" );
+			if( enabled && !_robotLoaded ) {
+				TglDragEnable.IsChecked = false;
+				SetStatus( "Load a robot before enabling drag." );
+				return;
+			}
+			_viewer?.SetDragEnabled( enabled );
+			SetStatus( enabled ? "Drag enabled: grab a gizmo handle to move TCP."
+								: "Drag disabled." );
 		}
 
 		private void ApplyAxisLimits( double[][] limits )
