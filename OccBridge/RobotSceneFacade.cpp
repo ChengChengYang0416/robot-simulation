@@ -430,12 +430,18 @@ void RobotSceneFacade::onMouseMove( int x, int y, int buttonMask )
 }
 
 void RobotSceneFacade::onMouseUp()
-// End-of-drag tear-down: cancel the manipulator's started transformation and snap
-// the gizmo back onto the actual post-IK TCP frame so subsequent drags start from
-// the geometric truth rather than where the cursor happened to land.
+// End-of-drag tear-down: re-pin the trihedron to the current FK_TCP and snap the
+// gizmo to the same pose. Re-pinning is defensive: AIS_Manipulator::StopTransform
+// has historically been observed to mutate the anchor's LocalTransformation as part
+// of its tear-down, so we force-restore the trihedron to FK truth before the next
+// StartTransform snapshots it as the new drag reference. Without this, a stale
+// LocalTrsf gets captured at the next mouse-down and the IK target on the first
+// drag-tick computes against the wrong base, yanking the TCP back to the previous
+// drag's starting point.
 {
 	if( m_impl->dragGizmo.onMouseUp() ) {
 		if( auto tcp = m_impl->repo.tcpFrame() ) {
+			m_impl->repo.setTcpTransform( *tcp );
 			m_impl->dragGizmo.syncToPose( *tcp );
 			m_impl->repo.updateViewer();
 		}

@@ -67,9 +67,9 @@ void ManipulatorController::setAnchorObject( const Handle( AIS_InteractiveObject
 	m_anchor = object;
 	if( m_enabled && !m_anchor.IsNull() && !m_manipulator.IsNull() && !m_context.IsNull() ) {
 		AIS_Manipulator::OptionsForAttach opts;
-		opts.SetAdjustPosition( Standard_True );
-		opts.SetAdjustSize( Standard_False );
-		opts.SetEnableModes( Standard_True );
+		opts.SetAdjustPosition( Standard_True );   // required: leaving this false makes
+		opts.SetAdjustSize( Standard_False );      // Attach() desync the anchor's rendered
+		opts.SetEnableModes( Standard_True );      // pose from its LocalTransformation.
 		m_manipulator->Attach( m_anchor, opts );
 	}
 }
@@ -97,9 +97,9 @@ void ManipulatorController::setEnabled( bool enabled )
 		}
 		if( !m_manipulator->IsAttached() ) {
 			AIS_Manipulator::OptionsForAttach opts;
-			opts.SetAdjustPosition( Standard_True );
-			opts.SetAdjustSize( Standard_False );
-			opts.SetEnableModes( Standard_True );
+			opts.SetAdjustPosition( Standard_True );   // required: leaving this false makes
+			opts.SetAdjustSize( Standard_False );      // Attach() desync the anchor's rendered
+			opts.SetEnableModes( Standard_True );      // pose from its LocalTransformation.
 			m_manipulator->Attach( m_anchor, opts );
 		}
 		m_manipulator->EnableMode( AIS_MM_Translation );
@@ -155,11 +155,21 @@ bool ManipulatorController::onMouseDown( int x, int y, int button )
 }
 
 bool ManipulatorController::onMouseMove( int x, int y, int /*buttonMask*/ )
-// Drag step: apply the manipulator's Transform (which also writes the new pose into
-// the anchor's LocalTransformation), then read that pose back as the IK target.
-// Reading the anchor's LocalTransformation rather than computing the manipulator's
-// Position-derived gp_Trsf keeps the dragged pose consistent with what the user sees
-// on screen, even for plane-translation modes that combine axes.
+// Drag step: compute the proposed target via ObjectTransformation (read-only — does
+// NOT mutate the anchor's LocalTransformation), then hand the world-frame target to
+// the IK callback. The gizmo's visual position is then explicitly snapped to the
+// cursor's target so the operator sees the handle follow the mouse, while the
+// trihedron is left untouched here and is driven exclusively by FK inside the
+// handler (via updateRobotTransforms → repo.setTcpTransform).
+//
+// Why not Transform(x, y, view)? That call writes (delta * StartTrsf) into the
+// anchor's LocalTransformation as a side-effect. When the handler subsequently runs
+// IK and fails (e.g. unreachable target / joint limit), it restores the seed joints
+// and FK overwrites the trihedron back to the seed pose — but the manipulator's
+// internal myPosition has already moved to the cursor's target. The user sees the
+// gizmo lead and the trihedron lag for every failed tick. Decoupling the two paths
+// (gizmo := cursor, trihedron := FK) makes the failure mode self-evident (the gizmo
+// rubber-bands away from the TCP) and removes the double-write hazard entirely.
 {
 	if( !m_isDragging || m_manipulator.IsNull() || m_view.IsNull() ) {
 		return false;
@@ -167,24 +177,35 @@ bool ManipulatorController::onMouseMove( int x, int y, int /*buttonMask*/ )
 	if( !m_manipulator->HasActiveMode() ) {
 		return false;
 	}
-	m_manipulator->Transform( x, y, m_view );
-	if( !m_anchor.IsNull() && m_handler ) {
-		m_handler( m_anchor->LocalTransformation() );
+	gp_Trsf delta;
+	if( !m_manipulator->ObjectTransformation( x, y, m_view, delta ) ) {
+		return true;   // mode active, mouse hasn't moved off start position yet
+	}
+	const gp_Trsf target = delta * m_manipulator->StartTransformation();
+	m_manipulator->SetPosition( toAx2( target ) );
+	if( m_handler ) {
+		m_handler( target );
 	}
 	return true;
 }
 
 bool ManipulatorController::onMouseUp()
-// Drag end: cancel rather than apply, because the facade has already committed the
-// motion through FK each tick. StopTransform(false) leaves the anchor's transform
-// untouched, and the next FK pass (driven by the post-IK joint commit) will keep
-// the trihedron at its final location regardless.
+// Drag end: clear the manipulator's started-transformation flag without reverting the
+// anchor. We never called Transform() during the drag (FK was the sole writer of the
+// anchor's LocalTransformation via the facade), so there is nothing to "commit" — but
+// StopTransform(Standard_False) would revert the anchor's LocalTrsf back to the
+// myStartTrsfs snapshot captured at StartTransform, which is the FK pose at drag-START
+// (not the FK pose at drag-END). Passing Standard_True keeps the anchor at its current
+// LocalTransformation (= the last FK_TCP that updateRobotTransforms wrote), which is
+// what the next StartTransform needs to snapshot as the new reference. Without this,
+// the next drag would treat the stale start pose as truth and IK would yank the TCP
+// back to the previous drag's starting point.
 {
 	if( !m_isDragging ) {
 		return false;
 	}
 	if( !m_manipulator.IsNull() && m_manipulator->HasActiveTransformation() ) {
-		m_manipulator->StopTransform( Standard_False );
+		m_manipulator->StopTransform( Standard_True );
 	}
 	m_isDragging = false;
 	return true;
