@@ -59,6 +59,13 @@ public:
 	// exactly once. Required by MoveL / MoveJ tick handlers to avoid the 6x full
 	// scene redraw cost of looping setJointAngle() per axis at high frame rates.
 
+	[[nodiscard]] virtual bool getJointAngles( double outAnglesDeg[ 6 ] ) const = 0;
+	// Reads the current 6-axis joint vector (degrees) from the kinematics core.
+	// Returns false when no robot is loaded or out is null. Callers can use this
+	// to reconcile a cached HMI copy after paths that mutate joints outside the
+	// setJointAngle(s) surface — currently the drag-mode gizmo (Phase 3.1/3.2)
+	// which commits IK solutions directly from applyDragTarget().
+
 	[[nodiscard]] virtual bool getTcpPose( double out[6] ) const = 0;
 	// Fills out with [x, y, z, rx, ry, rz] in mm and degrees (ZYX intrinsic Euler);
 	// returns false when no robot is loaded or out is null.

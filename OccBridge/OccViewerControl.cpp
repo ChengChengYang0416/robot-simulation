@@ -191,6 +191,25 @@ namespace OccBridge {
 		return result;
 	}
 
+	cli::array<double>^ OccViewerControl::GetJointAngles( void )
+	// Reads the kinematics core's current joint vector out to a managed array.
+	// Returns nullptr when no robot is loaded so subscribers of JointsChanged can
+	// early-out without a per-axis loop over uninitialized data.
+	{
+		if( !m_bInitialized ) {
+			return nullptr;
+		}
+		double buf[ 6 ] = { 0, 0, 0, 0, 0, 0 };
+		if( !m_pNative->getJointAngles( buf ) ) {
+			return nullptr;
+		}
+		auto result = gcnew cli::array<double>( 6 );
+		for( int i = 0; i < 6; ++i ) {
+			result[ i ] = buf[ i ];
+		}
+		return result;
+	}
+
 	int OccViewerControl::SolveTcpIk( cli::array<double>^ targetXyzRpy,
 									  cli::array<double>^ jointMinDeg,
 									  cli::array<double>^ jointMaxDeg,
@@ -380,11 +399,17 @@ namespace OccBridge {
 	}
 
 	void OccViewerControl::OnMouseUp( MouseEventArgs^ e )
-	// Forwards mouse-up to the native viewer to stop rotation and pan
+	// Forwards mouse-up to the native viewer, then re-publishes the joint vector.
+	// Drag mode commits IK results synchronously inside the native onMouseUp path,
+	// so by the time we call GetJointAngles the kinematics core already holds the
+	// post-drag joint state. Firing on every mouse-up (not just drag) keeps the
+	// control ignorant of whether a drag was in progress and costs one native
+	// call + 6 marshalled doubles per click.
 	{
 		UserControl::OnMouseUp( e );
 		if( m_bInitialized ) {
 			m_pNative->onMouseUp( );
+			JointsChanged( GetJointAngles() );
 		}
 	}
 

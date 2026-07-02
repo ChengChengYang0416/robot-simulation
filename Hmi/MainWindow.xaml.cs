@@ -118,6 +118,13 @@ namespace Hmi
 			Icon = new BitmapImage( new Uri( "pack://application:,,,/robot-icon.png" ) );
 			_viewer = new OccViewerControl();
 			WinFormsHost.Child = _viewer;
+			// Drag mode commits IK results directly to the native kinematics core,
+			// bypassing SetJointAngle(s). Without this subscription the HMI's
+			// _jointAngles cache stays stale after every drag and downstream
+			// consumers (Reset-to-Home delta, MoveJ seed, dashboard readout) see
+			// pre-drag values. OccViewerControl fires JointsChanged on every
+			// mouse-up so this handler covers both drag and camera-only clicks.
+			_viewer.JointsChanged += OnViewerJointsChanged;
 			SetStatus( "Ready" );
 
 			var lastFolder = GetLastModelFolder();
@@ -813,6 +820,33 @@ namespace Hmi
 			}
 			_viewer.SetJointAngles( anglesDeg );
 			UpdateDashboard();
+		}
+
+		private void OnViewerJointsChanged( double[] anglesDeg )
+		{
+			// Sync the HMI joint cache with whatever the native side committed. Fires
+			// after every mouse-up so drag-mode IK commits become visible to Home /
+			// MoveJ / dashboard without any explicit polling. A no-op payload (no
+			// robot / non-drag click) short-circuits — the array reference check
+			// avoids allocating garbage while a MoveL / MoveJ tick is also running
+			// (their own ApplyAllJointAngles path is authoritative during motion).
+			if( anglesDeg == null || anglesDeg.Length < JointCount ) {
+				return;
+			}
+			if( ( _moveLTimer != null && _moveLTimer.IsEnabled )
+			 || ( _moveJTimer != null && _moveJTimer.IsEnabled ) ) {
+				return;
+			}
+			bool changed = false;
+			for( int i = 0; i < JointCount; i++ ) {
+				if( Math.Abs( _jointAngles[ i ] - anglesDeg[ i ] ) > 1e-9 ) {
+					_jointAngles[ i ] = anglesDeg[ i ];
+					changed = true;
+				}
+			}
+			if( changed ) {
+				UpdateDashboard();
+			}
 		}
 
 		private static double NormalizeAngleDeg( double a )

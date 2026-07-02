@@ -32,6 +32,7 @@ public:
 
 	void setJointAngle( int axisIndex, double angleDeg ) override;
 	void setJointAngles( const double anglesDeg[ 6 ] ) override;
+	[[nodiscard]] bool getJointAngles( double outAnglesDeg[ 6 ] ) const override;
 	[[nodiscard]] bool getTcpPose( double out[ 6 ] ) const override;
 
 	[[nodiscard]] int solveTcpIk( const double targetXyzRpy[ 6 ],

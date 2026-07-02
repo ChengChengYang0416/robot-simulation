@@ -51,6 +51,19 @@ namespace OccBridge {
 		// Returns the TCP pose as [x, y, z, rx, ry, rz] in mm and degrees,
 		// or nullptr if no robot is currently loaded
 
+		cli::array<double>^ GetJointAngles( void );
+		// Returns the current 6-axis joint vector in degrees, or nullptr if no
+		// robot is loaded. Needed by the HMI to reconcile its cached joint array
+		// after drag mode commits IK results without going through SetJointAngle(s).
+
+		event Action<cli::array<double>^>^ JointsChanged;
+		// Raised after every mouse-up (i.e. after the native viewer has processed
+		// any drag-commit) with a fresh copy of the joint vector. HMI subscribes
+		// and refreshes its local joint cache + dashboard. Non-drag mouse-ups
+		// still fire the event (the payload is unchanged) which is cheap enough:
+		// one native call per click, 6 marshalled doubles. Payload is nullptr
+		// when no robot is loaded — subscribers must handle that case.
+
 		int SolveTcpIk( cli::array<double>^ targetXyzRpy,
 						cli::array<double>^ jointMinDeg,
 						cli::array<double>^ jointMaxDeg,

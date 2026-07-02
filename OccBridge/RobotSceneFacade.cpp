@@ -296,6 +296,25 @@ bool RobotSceneFacade::getTcpPose( double out[ 6 ] ) const
 	return true;
 }
 
+bool RobotSceneFacade::getJointAngles( double outAnglesDeg[ 6 ] ) const
+// Copies the kinematics core's current joint vector out. Needed by the HMI to
+// reconcile its local cache after paths that mutate joints without going through
+// setJointAngle(s) — currently the drag-mode gizmo, which commits IK results
+// directly from applyDragTarget() and leaves the HMI copy stale.
+{
+	if( outAnglesDeg == nullptr ) {
+		return false;
+	}
+	if( m_impl->kin.parts().empty() ) {
+		return false;
+	}
+	const auto& joints = m_impl->kin.jointAnglesDeg();
+	for( int i = 0; i < 6; ++i ) {
+		outAnglesDeg[ i ] = joints[ i ];
+	}
+	return true;
+}
+
 int RobotSceneFacade::solveTcpIk( const double targetXyzRpy[ 6 ],
 								  const double jointMinDeg[ 6 ],
 								  const double jointMaxDeg[ 6 ],
