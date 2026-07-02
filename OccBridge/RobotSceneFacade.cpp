@@ -493,6 +493,18 @@ void RobotSceneFacade::setDragEnabled( bool enabled )
 	}
 }
 
+void RobotSceneFacade::setGizmoMode( int mode )
+// Translates the bridged int back to the controller enum. Any out-of-range value
+// falls back to Translate so a bad HMI push cannot leave the gizmo without any
+// visible handles.
+{
+	const auto gizmoMode = ( mode == static_cast<int>( Interaction::ManipulatorController::GizmoMode::Rotate ) )
+							   ? Interaction::ManipulatorController::GizmoMode::Rotate
+							   : Interaction::ManipulatorController::GizmoMode::Translate;
+	m_impl->dragGizmo.setGizmoMode( gizmoMode );
+	m_impl->repo.updateViewer();
+}
+
 void RobotSceneFacade::applyDragTarget( const gp_Trsf& targetWorld )
 // Drag callback: convert the manipulator's proposed pose to (XYZ, ZYX-RPY), run the
 // analytical IK first and fall back to DLS, commit joints on convergence. Failure

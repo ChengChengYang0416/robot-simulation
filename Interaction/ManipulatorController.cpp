@@ -34,17 +34,30 @@ gp_Ax2 toAx2( const gp_Trsf& trsf )
 }  // namespace
 
 void ManipulatorController::buildManipulator()
-// Creates the AIS_Manipulator once and configures parts: translation + rotation on
-// all three axes, scaling disabled (irrelevant for an articulated arm). Activation
-// on detection is enabled so the operator does not need an extra click to switch
-// between manipulation modes — hovering over a handle is enough.
+// Creates the AIS_Manipulator once and configures parts based on the current gizmo
+// mode. Scaling is disabled unconditionally (irrelevant for an articulated arm).
+// Activation on detection is enabled so the operator does not need an extra click
+// to switch between the visible handles — hovering over one is enough.
 {
 	m_manipulator = new AIS_Manipulator();
 	m_manipulator->SetPart( AIS_MM_Scaling, Standard_False );
-	m_manipulator->SetPart( AIS_MM_Translation, Standard_True );
-	m_manipulator->SetPart( AIS_MM_Rotation, Standard_True );
 	m_manipulator->SetModeActivationOnDetection( Standard_True );
 	m_manipulator->SetSize( kGizmoSizeMm );
+	applyGizmoModeParts();
+}
+
+void ManipulatorController::applyGizmoModeParts()
+// Shows exactly one handle set (arrows OR rings). We intentionally never render both
+// together: with SetModeActivationOnDetection enabled, having both parts visible lets
+// a stray hover flip the active mode between ticks, which was observed to swap a
+// user's translation drag mid-motion when the cursor crossed a rotation ring.
+{
+	if( m_manipulator.IsNull() ) {
+		return;
+	}
+	const bool isTranslate = ( m_gizmoMode == GizmoMode::Translate );
+	m_manipulator->SetPart( AIS_MM_Translation, isTranslate ? Standard_True : Standard_False );
+	m_manipulator->SetPart( AIS_MM_Rotation,    isTranslate ? Standard_False : Standard_True );
 }
 
 void ManipulatorController::attach( const Handle( V3d_View ) & view,
@@ -103,8 +116,12 @@ void ManipulatorController::setEnabled( bool enabled )
 			opts.SetEnableModes( Standard_True );      // pose from its LocalTransformation.
 			m_manipulator->Attach( m_anchor, opts );
 		}
-		m_manipulator->EnableMode( AIS_MM_Translation );
-		m_manipulator->EnableMode( AIS_MM_Rotation );
+		applyGizmoModeParts();
+		if( m_gizmoMode == GizmoMode::Translate ) {
+			m_manipulator->EnableMode( AIS_MM_Translation );
+		} else {
+			m_manipulator->EnableMode( AIS_MM_Rotation );
+		}
 		m_context->Display( m_manipulator, Standard_False );
 		m_context->UpdateCurrentViewer();
 	} else {
@@ -122,6 +139,40 @@ void ManipulatorController::setEnabled( bool enabled )
 		m_context->UpdateCurrentViewer();
 	}
 	m_enabled = enabled;
+}
+
+void ManipulatorController::setGizmoMode( GizmoMode mode )
+// Applies the requested mode. Mid-drag calls are dropped rather than queued: the
+// operator's finger is on the mouse button, so the state we would race is the
+// manipulator's active-mode selection. If not currently attached / displayed, we
+// only remember the choice — setEnabled() will pick it up on the next enable.
+{
+	if( m_isDragging ) {
+		return;
+	}
+	if( m_gizmoMode == mode ) {
+		return;
+	}
+	m_gizmoMode = mode;
+	if( m_manipulator.IsNull() ) {
+		return;
+	}
+	// Clear any hover-selected mode before flipping visible parts, otherwise
+	// currentMode may still point at a mode whose handles are about to be hidden.
+	if( m_manipulator->HasActiveMode() ) {
+		m_manipulator->DeactivateCurrentMode();
+	}
+	applyGizmoModeParts();
+	if( !m_enabled || m_context.IsNull() || !m_manipulator->IsAttached() ) {
+		return;
+	}
+	if( m_gizmoMode == GizmoMode::Translate ) {
+		m_manipulator->EnableMode( AIS_MM_Translation );
+	} else {
+		m_manipulator->EnableMode( AIS_MM_Rotation );
+	}
+	m_context->Redisplay( m_manipulator, Standard_False );
+	m_context->UpdateCurrentViewer();
 }
 
 void ManipulatorController::syncToPose( const gp_Trsf& tcpFrame )

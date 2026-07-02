@@ -17,6 +17,15 @@ class ManipulatorController
 // kinematics layer. Mouse handlers return bool so the facade can route either to this
 // controller (when drag is consuming the event) or to the camera MouseInteractor.
 public:
+	enum class GizmoMode : int
+	{
+		Translate = 0,   // three arrow handles only — position drag
+		Rotate    = 1,   // three ring handles only — orientation drag
+	};
+	// Exclusive mode selector. Both parts on the AIS_Manipulator are visually hidden
+	// except the one matching the current mode so hover-detection cannot silently
+	// pick up the wrong handle after the operator changes intent.
+
 	using TargetPoseHandler = std::function<void( const gp_Trsf& )>;
 	// Invoked on every drag move with the manipulator's proposed world-frame target
 	// transform. The handler typically runs IK and commits joints.
@@ -44,6 +53,17 @@ public:
 		return m_enabled;
 	}
 
+	void setGizmoMode( GizmoMode mode );
+	// Switches between Translate-only and Rotate-only handle sets. Safe to call
+	// before attach()/setEnabled(): the choice is cached and applied on the next
+	// enable. Mid-drag calls are ignored so an accidental HMI click during a drag
+	// tick cannot leave the manipulator in an inconsistent selection state.
+
+	[[nodiscard]] GizmoMode gizmoMode() const
+	{
+		return m_gizmoMode;
+	}
+
 	void syncToPose( const gp_Trsf& tcpFrame );
 	// Re-anchors the gizmo on the supplied world-frame TCP pose. Called after FK
 	// updates so the gizmo follows the actual TCP after IK convergence.
@@ -65,11 +85,17 @@ private:
 	// Lazily creates the AIS_Manipulator with the desired part configuration.
 	// Called from attach() once the context is known.
 
+	void applyGizmoModeParts();
+	// Applies the current m_gizmoMode to the manipulator by toggling SetPart for
+	// Translation / Rotation. Requires the manipulator to be constructed; the
+	// context / display refresh is left to the caller.
+
 	Handle( V3d_View )               m_view;
 	Handle( AIS_InteractiveContext ) m_context;
 	Handle( AIS_Manipulator )        m_manipulator;
 	Handle( AIS_InteractiveObject )  m_anchor;
 	TargetPoseHandler                m_handler;
+	GizmoMode                        m_gizmoMode  = GizmoMode::Translate;
 	bool                             m_enabled    = false;
 	bool                             m_isDragging = false;
 };

@@ -48,6 +48,8 @@ public:
 
 	void setDragEnabled( bool enabled ) override;
 
+	void setGizmoMode( int mode ) override;
+
 	void clearScene() override;
 
 	void fitAll() override;

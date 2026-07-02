@@ -991,6 +991,22 @@ namespace Hmi
 								: "Drag disabled." );
 		}
 
+		private void RbGizmoMode_Checked( object sender, RoutedEventArgs e )
+		{
+			// Both Translate and Rotate radios route here; look at which one is
+			// checked. Guard on _viewer because the initial XAML IsChecked="True"
+			// fires the Checked event during InitializeComponent(), before the
+			// viewer field is assigned in the constructor.
+			if( _viewer == null ) {
+				return;
+			}
+			// 0 = Translate, 1 = Rotate — must match IRobotScene::GizmoMode.
+			int mode = ( RbGizmoRotate != null && RbGizmoRotate.IsChecked == true ) ? 1 : 0;
+			_viewer.SetGizmoMode( mode );
+			SetStatus( mode == 1 ? "Gizmo: rotate — drag a ring to reorient TCP."
+								 : "Gizmo: translate — drag an arrow to move TCP." );
+		}
+
 		private void ApplyAxisLimits( double[][] limits )
 		{
 			for( int i = 0; i < Math.Min( limits.Length, JointCount ); i++ ) {

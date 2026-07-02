@@ -346,6 +346,15 @@ namespace OccBridge {
 		}
 	}
 
+	void OccViewerControl::SetGizmoMode( int mode )
+	// Forwards the gizmo mode selection. Same pre-initialization guard as
+	// SetDragEnabled so radio-button Checked handlers can fire during XAML load.
+	{
+		if( m_bInitialized ) {
+			m_pNative->setGizmoMode( mode );
+		}
+	}
+
 	void OccViewerControl::OnMouseDown( MouseEventArgs^ e )
 	// Ensures the control has keyboard focus, then forwards mouse-down to the native viewer
 	{

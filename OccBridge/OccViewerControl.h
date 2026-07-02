@@ -114,6 +114,12 @@ namespace OccBridge {
 		// is loaded: the gizmo only appears once the TCP trihedron exists as an
 		// anchor (i.e. after LoadRobotArm completes).
 
+		void SetGizmoMode( int mode );
+		// Selects the drag gizmo's handle set: 0 = Translate (arrows), 1 = Rotate
+		// (rings). Passing any other value defers to the facade's fallback
+		// (Translate). Safe to call before initialization; the call is swallowed
+		// until the native viewer is ready.
+
 	protected:
 		virtual void OnHandleCreated( EventArgs^ e ) override;
 		// Called once the window handle is created; initializes the OCCT viewer

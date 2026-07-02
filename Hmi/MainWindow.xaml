@@ -246,8 +246,8 @@
                                         </StackPanel>
                                         <TextBlock Text="Gizmo:" Margin="0,8,0,4"/>
                                         <StackPanel Orientation="Horizontal">
-                                            <RadioButton Name="RbGizmoTranslate" Content="Translate" IsChecked="True" Margin="0,0,12,0" GroupName="Gizmo"/>
-                                            <RadioButton Name="RbGizmoRotate"    Content="Rotate"                     GroupName="Gizmo"/>
+                                            <RadioButton Name="RbGizmoTranslate" Content="Translate" IsChecked="True" Margin="0,0,12,0" GroupName="Gizmo" Checked="RbGizmoMode_Checked"/>
+                                            <RadioButton Name="RbGizmoRotate"    Content="Rotate"                     GroupName="Gizmo" Checked="RbGizmoMode_Checked"/>
                                         </StackPanel>
                                     </StackPanel>
                                 </GroupBox>
