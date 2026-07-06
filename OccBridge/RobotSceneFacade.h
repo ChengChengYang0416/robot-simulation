@@ -3,6 +3,8 @@
 #include "IRobotScene.h"
 
 class gp_Trsf;
+class gp_Pnt;
+class gp_Dir;
 
 namespace OccBridge {
 
@@ -78,6 +80,45 @@ private:
 	// commits the solution via setJointAngles() on convergence. The gizmo's screen
 	// position remains where the operator dragged it; the FK pass triggered by the
 	// joint commit moves the trihedron to match.
+
+	void applyJointDragDelta( int axisIdxZeroBased, double deltaDeg );
+	// Joint-drag callback (Phase 3.3): applies an incremental angle to a single axis,
+	// clamps to the cached joint limits, and refreshes the scene through the standard
+	// FK path. Called from the JointDragController via a std::function closure wired
+	// up in initialize().
+
+	void syncDragControllers();
+	// Reconciles the (dragEnabled, gizmoMode) pair into concrete enable/disable calls
+	// on the manipulator gizmo (TCP Translate/Rotate) and the joint-drag picker (per-
+	// link Joint). Invoked by setDragEnabled and setGizmoMode so the two setters do
+	// not need to know each other's state to keep the controllers consistent.
+
+	bool axisFrameForIndex( int axisOneBased, gp_Pnt& origin, gp_Dir& dir ) const;
+	// Resolves the world-space pivot and rotation axis for driven axis 1..6 by
+	// walking the DH cumulative chain to the joint's parent frame (origin +
+	// Z-axis). Extracted so both the joint-drag picker's frame callback and the
+	// ring-placement pass share one implementation.
+
+	void rebuildJointRings();
+	// Discards any existing rings and builds one fresh AIS_Circle per driven axis
+	// with a per-axis radius scaled off the arm's DH reach. Called from
+	// endRobotArm() after the shape lookup is populated so ring pointers can be
+	// merged into the same axisLookup handed to the joint-drag picker.
+
+	void refreshJointRingPoses();
+	// Repositions every ring to match its axis's current parent frame. Runs on
+	// every FK update while joint-mode is active so rings track the arm as
+	// upstream joints move; a no-op when the rings list is empty.
+
+	void setJointRingsVisible( bool visible );
+	// Displays or erases every ring in a single AIS context call and toggles the
+	// cached visibility flag. Also drives whether refreshJointRingPoses runs on
+	// FK updates — hidden rings do not need re-posing.
+
+	void pushAxisLookupToJointDrag();
+	// Merges shapeAxisLookup with the ring pointers and hands the union to the
+	// joint-drag picker. Called whenever either half of the lookup changes
+	// (endRobotArm rebuilds shapes, rebuildJointRings rebuilds rings).
 
 	struct Impl;
 	// PIMPL: defined in the .cpp so OCCT headers (V3d_View, AIS_Shape, ...) do not

@@ -74,6 +74,19 @@ public:
 	// Number of slots ever allocated. Includes slots that may have been individually
 	// removed in the future; currently slots are monotonic and only freed via clear().
 
+	[[nodiscard]] Handle( AIS_Shape ) slotShape( int slotId ) const
+	{
+		if( slotId < 0 || slotId >= static_cast<int>( m_shapes.size() ) ) {
+			return {};
+		}
+		return m_shapes[ slotId ];
+	}
+	// Returns the AIS_Shape backing the given slot, or a null handle when the slot is
+	// out of range or was cleared. Consumed by the drag-mode joint picker so it can
+	// build an AIS_InteractiveObject → axis-index lookup at load time; keeping the
+	// getter here rather than exposing the shapes vector preserves the repository's
+	// encapsulation of the slot list.
+
 private:
 	Handle( AIS_InteractiveContext ) m_context;
 	std::vector<Handle( AIS_Shape )> m_shapes;

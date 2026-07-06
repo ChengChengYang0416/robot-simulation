@@ -241,8 +241,8 @@
                                                       Checked="TglDragEnable_Changed" Unchecked="TglDragEnable_Changed"/>
                                         <TextBlock Text="Drag Target:" Margin="0,4,0,4"/>
                                         <StackPanel Orientation="Horizontal">
-                                            <RadioButton Name="RbDragTcp"   Content="TCP"   IsChecked="True" Margin="0,0,12,0" GroupName="DragTarget"/>
-                                            <RadioButton Name="RbDragJoint" Content="Joint"                  GroupName="DragTarget"/>
+                                            <RadioButton Name="RbDragTcp"   Content="TCP"   IsChecked="True" Margin="0,0,12,0" GroupName="DragTarget" Checked="RbDragTarget_Checked"/>
+                                            <RadioButton Name="RbDragJoint" Content="Joint"                  GroupName="DragTarget" Checked="RbDragTarget_Checked"/>
                                         </StackPanel>
                                         <TextBlock Text="Gizmo:" Margin="0,8,0,4"/>
                                         <StackPanel Orientation="Horizontal">

@@ -129,13 +129,18 @@ public:
 	{
 		Translate = 0,   // three arrow handles → TCP position drag
 		Rotate    = 1,   // three ring handles  → TCP orientation drag (Phase 3.2)
+		Joint     = 2,   // click a link → drag rotates its driving axis (Phase 3.3)
 	};
 
 	virtual void setGizmoMode( int mode ) = 0;
-	// Switches the drag gizmo between translation and rotation handle sets. mode
-	// is a GizmoMode cast to int (kept as int across the interface so C++/CLI
-	// callers don't have to translate the native enum). Safe to call whether or
-	// not drag is currently enabled; mid-drag calls are ignored by the controller.
+	// Switches the drag interaction between three targets: Translate/Rotate operate
+	// on the TCP via the AIS_Manipulator gizmo; Joint hides the gizmo and instead
+	// picks a robot link on mouse-down, resolves it to its driving axis, and
+	// rotates that axis by projecting the mouse motion onto the axis's screen-space
+	// tangent. mode is a GizmoMode cast to int (kept as int across the interface
+	// so C++/CLI callers don't have to translate the native enum). Safe to call
+	// whether or not drag is currently enabled; mid-drag calls are ignored by the
+	// controllers.
 
 	// ---- Camera ----------------------------------------------------------------
 

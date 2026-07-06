@@ -1,8 +1,11 @@
 #include <windows.h>
+#include <cmath>
 #include <cstdint>
+#include <unordered_map>
 #include <vector>
 #include "RobotSceneFacade.h"
 #include "../Interaction/CameraController.h"
+#include "../Interaction/JointDragController.h"
 #include "../Interaction/ManipulatorController.h"
 #include "../Interaction/MouseInteractor.h"
 #include "../Kinematics/IkSolver.h"
@@ -16,7 +19,15 @@
 #include "../Scene/StepLoader.h"
 #include "../Scene/TcpTrail.h"
 #include "../Viewer/ViewportContext.h"
+#include <AIS_Circle.hxx>
+#include <Geom_Circle.hxx>
+#include <Prs3d_LineAspect.hxx>
+#include <Prs3d_Drawer.hxx>
 #include <Quantity_Color.hxx>
+#include <gp.hxx>
+#include <gp_Ax2.hxx>
+#include <gp_Ax3.hxx>
+#include <gp_Circ.hxx>
 
 namespace OccBridge {
 
@@ -28,6 +39,7 @@ struct RobotSceneFacade::Impl
 	Scene::TcpTrail        trail;
 	Interaction::MouseInteractor mouse;
 	Interaction::ManipulatorController dragGizmo;
+	Interaction::JointDragController   jointDrag;
 	Interaction::CameraController camera;
 	OccBridge::RobotKinematics kin;
 
@@ -42,6 +54,32 @@ struct RobotSceneFacade::Impl
 	double jointMinDeg[ 6 ] = { -360.0, -360.0, -360.0, -360.0, -360.0, -360.0 };
 	double jointMaxDeg[ 6 ] = {  360.0,  360.0,  360.0,  360.0,  360.0,  360.0 };
 	bool   hasJointLimits   = false;
+
+	// Drag state cached at the facade level so setGizmoMode() and setDragEnabled()
+	// can independently update it and re-derive which controller (dragGizmo for TCP
+	// Translate/Rotate, jointDrag for per-link Joint) is currently active. Without
+	// this, the two setters would need to know each other's arguments to stay in
+	// sync — a classic coupling smell.
+	bool dragEnabled = false;
+	int  gizmoMode   = static_cast<int>( IRobotScene::GizmoMode::Translate );
+
+	// Cached AIS_Shape -> axis lookup built once per robot load in endRobotArm().
+	// The joint-drag picker consumes the union of this and the ring lookup so the
+	// operator can click either the link body or the visual affordance ring.
+	std::unordered_map<AIS_InteractiveObject*, int> shapeAxisLookup;
+
+	// One rotation ring per driven axis (index 0..5 → axes 1..6). The rings are the
+	// visible affordance for Joint drag mode: without them the operator has no
+	// on-screen cue that clicking a link will rotate it. Each ring is constructed
+	// once at the world origin along +Z, then re-posed via SetLocalTransformation
+	// on every FK update so it tracks its parent frame as the arm moves.
+	std::vector<Handle( AIS_Circle )> jointRings;
+	bool jointRingsVisible = false;
+
+	// Base radius (mm) used for the outermost joint ring. Later rings taper linearly
+	// so wrist rings do not visually swamp the fine geometry. Derived from the arm's
+	// DH reach in rebuildJointRings; a sensible fallback is used pre-load.
+	double jointRingBaseRadiusMm = 100.0;
 };
 
 RobotSceneFacade::RobotSceneFacade()
@@ -67,6 +105,17 @@ void RobotSceneFacade::initialize( HWND hwnd )
 	m_impl->dragGizmo.attach( m_impl->viewport.view(), m_impl->viewport.context() );
 	m_impl->dragGizmo.setTargetPoseHandler(
 		[ this ]( const gp_Trsf& target ) { this->applyDragTarget( target ); } );
+	m_impl->jointDrag.attach( m_impl->viewport.view(), m_impl->viewport.context() );
+	m_impl->jointDrag.setJointDragHandler(
+		[ this ]( int axisIdx, double deltaDeg ) { this->applyJointDragDelta( axisIdx, deltaDeg ); } );
+	// Joint-frame provider: delegate to axisFrameForIndex() so the ring-placement
+	// pass reuses the exact same DH walk. Wrapping it in a lambda keeps the
+	// controller decoupled from the facade (DIP): JointDragController only sees a
+	// std::function returning (origin, axis), never touches OccBridge internals.
+	m_impl->jointDrag.setAxisFrameProvider(
+		[ this ]( int axisOneBased, gp_Pnt& origin, gp_Dir& dir ) -> bool {
+			return this->axisFrameForIndex( axisOneBased, origin, dir );
+		} );
 	m_impl->camera.attach( m_impl->viewport.view() );
 }
 
@@ -175,6 +224,38 @@ void RobotSceneFacade::endRobotArm()
 	// a load anchors the manipulator without an extra HMI call. The gizmo stays hidden
 	// until setDragEnabled(true) is called.
 	m_impl->dragGizmo.setAnchorObject( m_impl->repo.tcpTrihedron() );
+
+	// Build the AIS_Shape -> axis-index (1..6) lookup consumed by the joint-drag
+	// picker. Walk the axisToPartMap once, resolve each driven part to its slot's
+	// AIS_Shape handle, and stash the raw pointer as the map key. Raw pointers are
+	// safe here because SceneRepository owns the Handles for the lifetime of the
+	// scene; clearScene() explicitly resets the lookup below before those handles
+	// drop. Parts that failed to load (slot -1) or landed on a null AIS_Shape are
+	// silently skipped so the picker just treats them as non-draggable.
+	m_impl->shapeAxisLookup.clear();
+	for( const auto& mapping : m_impl->kin.axisToPartMap() ) {
+		const int axisIdx = mapping.first;    // 1..6
+		const int partIdx = mapping.second;
+		if( axisIdx < 1 || axisIdx > 6 ) {
+			continue;
+		}
+		if( partIdx < 0 || partIdx >= static_cast<int>( m_impl->partToSlot.size() ) ) {
+			continue;
+		}
+		const int slotId = m_impl->partToSlot[ partIdx ];
+		Handle( AIS_Shape ) shape = m_impl->repo.slotShape( slotId );
+		if( shape.IsNull() ) {
+			continue;
+		}
+		m_impl->shapeAxisLookup.emplace( shape.get(), axisIdx );
+	}
+
+	// Build the visual affordance rings for Joint drag mode. They stay hidden
+	// until syncDragControllers turns Joint mode on, but must exist by the time
+	// we hand the merged lookup to the picker so ring pointers are already keys.
+	rebuildJointRings();
+	pushAxisLookupToJointDrag();
+
 	fitAll();
 }
 
@@ -236,6 +317,13 @@ void RobotSceneFacade::updateRobotTransforms()
 		}
 	}
 
+	// Ring positions follow the joints they sit on (rings on child links move as
+	// their parent axes rotate). Only re-pose while the rings are actually visible
+	// — hidden rings do not need the trsf work.
+	if( m_impl->jointRingsVisible ) {
+		refreshJointRingPoses();
+	}
+
 	m_impl->repo.updateViewer();
 }
 
@@ -243,12 +331,19 @@ void RobotSceneFacade::clearScene()
 // Asks the repository to remove all displayed objects, then resets kinematics and
 // the part-to-slot map. The repository keeps its context attachment for reuse.
 {
-	// Drop the gizmo first so it does not retain a stale handle to the trihedron
-	// the repository is about to release. setEnabled(false) also detaches and erases
-	// the manipulator from the context; setAnchorObject(nullptr) clears the cached
-	// anchor so the next load can rebind cleanly.
+	// Drop both drag controllers first so they do not retain stale handles to the
+	// trihedron / link shapes the repository is about to release. setEnabled(false)
+	// also detaches and erases the manipulator from the context; setAnchorObject
+	// (nullptr) and setAxisLookup({}) clear the cached anchors so the next load can
+	// rebind cleanly.
 	m_impl->dragGizmo.setEnabled( false );
 	m_impl->dragGizmo.setAnchorObject( Handle( AIS_InteractiveObject )() );
+	m_impl->jointDrag.setEnabled( false );
+	m_impl->jointDrag.setAxisLookup( {} );
+	setJointRingsVisible( false );
+	m_impl->jointRings.clear();
+	m_impl->shapeAxisLookup.clear();
+	m_impl->dragEnabled = false;
 	m_impl->repo.clear();
 	m_impl->trail.clear();
 	m_impl->kin.configure( {}, {} );
@@ -436,10 +531,16 @@ void RobotSceneFacade::setViewTop()
 }
 
 void RobotSceneFacade::onMouseDown( int x, int y, int button )
-// Drag gizmo gets first refusal: when enabled and hovering a handle it consumes the
-// event so the camera does not also start rotating. Otherwise the camera interactor
-// takes over with its usual rotate / pan behaviour.
+// Drag controllers get first refusal in priority order: joint picker first (when
+// Joint mode is armed it needs to consume any left-click over a driven link),
+// then the TCP gizmo (consumes only when hovering a manipulator handle), then the
+// camera. Only one controller can be enabled at a time (see syncDragControllers),
+// so priority ordering here is defensive — but keeping it explicit avoids relying
+// on the invariant if a future mode expands the drag surface.
 {
+	if( m_impl->jointDrag.onMouseDown( x, y, button ) ) {
+		return;
+	}
 	if( m_impl->dragGizmo.onMouseDown( x, y, button ) ) {
 		return;
 	}
@@ -447,11 +548,15 @@ void RobotSceneFacade::onMouseDown( int x, int y, int button )
 }
 
 void RobotSceneFacade::onMouseMove( int x, int y, int buttonMask )
-// During an active drag the gizmo callback runs IK + commits joints itself, so the
-// mouse interactor is skipped to avoid double-handling. With no active drag the
-// gizmo returns false and hover-driven detection still happens inside the mouse
-// interactor's MoveTo() call.
+// During an active drag the corresponding controller callback runs IK (TCP gizmo)
+// or applies the delta joint angle (joint picker) itself, so the mouse interactor
+// is skipped to avoid double-handling. With no active drag both controllers return
+// false and hover-driven detection still happens inside the mouse interactor's
+// MoveTo() call.
 {
+	if( m_impl->jointDrag.onMouseMove( x, y, buttonMask ) ) {
+		return;
+	}
 	if( m_impl->dragGizmo.onMouseMove( x, y, buttonMask ) ) {
 		return;
 	}
@@ -466,9 +571,14 @@ void RobotSceneFacade::onMouseUp()
 // StartTransform snapshots it as the new drag reference. Without this, a stale
 // LocalTrsf gets captured at the next mouse-down and the IK target on the first
 // drag-tick computes against the wrong base, yanking the TCP back to the previous
-// drag's starting point.
+// drag's starting point. Joint-drag mouse-up needs no such fix-up: it commits joint
+// angles through the FK path (setJointAngle + updateRobotTransforms) which is the
+// same code the trihedron pose reads from, so there is no dual-write to reconcile.
 {
-	if( m_impl->dragGizmo.onMouseUp() ) {
+	if( m_impl->jointDrag.onMouseUp() ) {
+		// Joint drag terminated cleanly; nothing further to do because every mouse-
+		// move already committed the intermediate joint state.
+	} else if( m_impl->dragGizmo.onMouseUp() ) {
 		if( auto tcp = m_impl->repo.tcpFrame() ) {
 			m_impl->repo.setTcpTransform( *tcp );
 			m_impl->dragGizmo.syncToPose( *tcp );
@@ -508,30 +618,64 @@ void RobotSceneFacade::setJointLimits( const double jointMinDeg[ 6 ],
 }
 
 void RobotSceneFacade::setDragEnabled( bool enabled )
-// Toggles the drag gizmo. When enabling, snap the gizmo to the current TCP so the
-// first interaction starts from the real pose rather than the manipulator's default
-// origin. setEnabled() handles the no-anchor case (no robot loaded) by leaving the
-// gizmo hidden until endRobotArm() supplies one.
+// Umbrella toggle for both drag paths. Which controller actually turns on is decided
+// by the currently-selected gizmo mode: Translate/Rotate → AIS_Manipulator (TCP
+// drag), Joint → per-link picker. Delegates to syncDragControllers() so the enable/
+// disable + mode dispatch logic lives in exactly one place.
 {
-	m_impl->dragGizmo.setEnabled( enabled );
-	if( enabled ) {
+	m_impl->dragEnabled = enabled;
+	syncDragControllers();
+}
+
+void RobotSceneFacade::setGizmoMode( int mode )
+// Stores the new mode and re-drives the controllers. Also pushes the AIS_Manipulator
+// handle-visibility mode when applicable so a mid-session Translate ↔ Rotate switch
+// keeps the visible part in sync. Joint mode is a facade-level dispatch and never
+// reaches the manipulator's SetPart; passing it through would put the manipulator
+// into an inconsistent Translate-with-Rotation-hidden state on the next enable.
+{
+	m_impl->gizmoMode = mode;
+	if( mode == static_cast<int>( GizmoMode::Rotate ) ) {
+		m_impl->dragGizmo.setGizmoMode( Interaction::ManipulatorController::GizmoMode::Rotate );
+	} else if( mode == static_cast<int>( GizmoMode::Translate ) ) {
+		m_impl->dragGizmo.setGizmoMode( Interaction::ManipulatorController::GizmoMode::Translate );
+	}
+	syncDragControllers();
+	m_impl->repo.updateViewer();
+}
+
+void RobotSceneFacade::syncDragControllers()
+// Single source of truth for (dragEnabled, gizmoMode) → controller enable state.
+// Any state transition that could change which controller should be active — the
+// operator flipping the umbrella toggle, or switching Drag Target radios mid-
+// session — routes through here so we never end up with both controllers enabled
+// (and fighting for mouse events) or both disabled when the operator expected drag
+// to be on.
+{
+	const bool jointMode = ( m_impl->gizmoMode == static_cast<int>( GizmoMode::Joint ) );
+	const bool wantGizmo = m_impl->dragEnabled && !jointMode;
+	const bool wantJoint = m_impl->dragEnabled &&  jointMode;
+
+	m_impl->dragGizmo.setEnabled( wantGizmo );
+	m_impl->jointDrag.setEnabled( wantJoint );
+	setJointRingsVisible( wantJoint );
+
+	if( wantJoint ) {
+		// Rings must reflect the current joint state the first time they appear,
+		// not the pose captured when they were last built.
+		refreshJointRingPoses();
+		m_impl->repo.updateViewer();
+	}
+
+	if( wantGizmo ) {
+		// Snap the manipulator to the current TCP so the first interaction starts
+		// from the real pose rather than the manipulator's default origin. Mirrors
+		// the historical setDragEnabled(true) behaviour.
 		if( auto tcp = m_impl->repo.tcpFrame() ) {
 			m_impl->dragGizmo.syncToPose( *tcp );
 			m_impl->repo.updateViewer();
 		}
 	}
-}
-
-void RobotSceneFacade::setGizmoMode( int mode )
-// Translates the bridged int back to the controller enum. Any out-of-range value
-// falls back to Translate so a bad HMI push cannot leave the gizmo without any
-// visible handles.
-{
-	const auto gizmoMode = ( mode == static_cast<int>( Interaction::ManipulatorController::GizmoMode::Rotate ) )
-							   ? Interaction::ManipulatorController::GizmoMode::Rotate
-							   : Interaction::ManipulatorController::GizmoMode::Translate;
-	m_impl->dragGizmo.setGizmoMode( gizmoMode );
-	m_impl->repo.updateViewer();
 }
 
 void RobotSceneFacade::applyDragTarget( const gp_Trsf& targetWorld )
@@ -579,6 +723,224 @@ void RobotSceneFacade::applyDragTarget( const gp_Trsf& targetWorld )
 		m_impl->kin.setJointAngle( i, res.jointAnglesDeg[ i ] );
 	}
 	updateRobotTransforms();
+}
+
+void RobotSceneFacade::applyJointDragDelta( int axisIdxZeroBased, double deltaDeg )
+// Joint-drag callback (Phase 3.3): apply an incremental angle to a single axis and
+// refresh the scene. The controller already projected the mouse motion onto the
+// axis's screen tangent, so deltaDeg is signed and correctly scaled — this method
+// only handles clamping to the cached joint limits and committing through the
+// standard FK path (kin.setJointAngle + updateRobotTransforms). Reusing that path
+// means the trihedron / TCP-trail / dashboard consumers pick up the change through
+// the same channels they see for MoveJ / MoveL, no separate observer needed.
+{
+	if( axisIdxZeroBased < 0 || axisIdxZeroBased >= 6 ) {
+		return;
+	}
+	if( m_impl->kin.parts().empty() ) {
+		return;
+	}
+
+	const auto& current = m_impl->kin.jointAnglesDeg();
+	double newAngle = current[ axisIdxZeroBased ] + deltaDeg;
+	if( m_impl->hasJointLimits ) {
+		if( newAngle < m_impl->jointMinDeg[ axisIdxZeroBased ] ) {
+			newAngle = m_impl->jointMinDeg[ axisIdxZeroBased ];
+		} else if( newAngle > m_impl->jointMaxDeg[ axisIdxZeroBased ] ) {
+			newAngle = m_impl->jointMaxDeg[ axisIdxZeroBased ];
+		}
+	}
+	m_impl->kin.setJointAngle( axisIdxZeroBased, newAngle );
+	updateRobotTransforms();
+}
+
+bool RobotSceneFacade::axisFrameForIndex( int axisOneBased, gp_Pnt& origin, gp_Dir& dir ) const
+// Per standard DH the joint that drives part i rotates around the +Z axis of
+// part i's parent frame, with the pivot at the parent frame's origin. Parent -1
+// (root joint) collapses to the world frame so J1 drags around world +Z.
+// Extracted so both the joint-drag picker's frame callback AND rebuildJointRings
+// share one authoritative walk — otherwise the two would drift apart the moment
+// the DH convention changed.
+{
+	if( axisOneBased < 1 || axisOneBased > 6 ) {
+		return false;
+	}
+	int partIdx = -1;
+	for( const auto& mapping : m_impl->kin.axisToPartMap() ) {
+		if( mapping.first == axisOneBased ) {
+			partIdx = mapping.second;
+			break;
+		}
+	}
+	if( partIdx < 0 ) {
+		return false;
+	}
+	const auto& parts = m_impl->kin.parts();
+	if( partIdx >= static_cast<int>( parts.size() ) ) {
+		return false;
+	}
+	const int parent = parts[ partIdx ].parentIdx;
+	const auto& cumulative = m_impl->kin.computeCumulative();
+	gp_Trsf parentFrame;
+	if( parent >= 0 && parent < static_cast<int>( cumulative.size() ) ) {
+		parentFrame = cumulative[ parent ];
+	}
+	origin = gp_Pnt( parentFrame.TranslationPart() );
+	// Extract Z-axis by column access — HVectorialPart returns a temporary gp_Mat
+	// by value so non-const methods like Multiply() cannot be called on it.
+	const gp_Mat rot = parentFrame.HVectorialPart();
+	dir = gp_Dir( rot.Column( 3 ) );
+	return true;
+}
+
+void RobotSceneFacade::rebuildJointRings()
+// Constructs one AIS_Circle per driven axis at the world origin along +Z. The
+// per-frame refresh in refreshJointRingPoses() moves each ring onto its joint via
+// SetLocalTransformation, which is far cheaper than reconstructing a Geom_Circle
+// every tick. Radii taper from the base out to the wrist so proximal rings do not
+// visually swallow the distal geometry. All rings are erased from the context
+// first because the operator may reload a robot without clearing scene state.
+{
+	auto ctx = m_impl->viewport.context();
+	if( ctx.IsNull() ) {
+		return;
+	}
+
+	// Tear down any previous rings so a robot reload does not double-populate the
+	// context (which would also leave stale raw pointers in axisLookup).
+	for( auto& ring : m_impl->jointRings ) {
+		if( !ring.IsNull() ) {
+			ctx->Remove( ring, Standard_False );
+		}
+	}
+	m_impl->jointRings.clear();
+	m_impl->jointRingsVisible = false;
+
+	const int axisCount = static_cast<int>( m_impl->kin.axisToPartMap().size() );
+	if( axisCount == 0 ) {
+		return;
+	}
+
+	// Derive a base radius from the arm's DH reach so LA906-class arms get larger
+	// rings than LA580-class ones. Falls back to a sensible default when the DH
+	// numbers are missing.
+	double reach = 0.0;
+	for( const auto& p : m_impl->kin.parts() ) {
+		reach += std::abs( p.dhA ) + std::abs( p.dhD );
+	}
+	m_impl->jointRingBaseRadiusMm = ( reach > 0.0 ) ? ( reach * 0.10 ) : 100.0;
+
+	// Bright cyan is chosen to contrast against both the dark gray background and
+	// the typical STEP-file color palette (grays / oranges).
+	const Quantity_Color ringColor( 0.15, 0.90, 1.00, Quantity_TOC_RGB );
+
+	m_impl->jointRings.reserve( 6 );
+	for( int axis = 1; axis <= 6; ++axis ) {
+		// Radius tapers linearly from base (axis 1) down to ~40% at the wrist so
+		// rings on smaller distal links do not dwarf the geometry there.
+		const double taper  = 1.0 - 0.6 * ( static_cast<double>( axis - 1 ) / 5.0 );
+		const double radius = m_impl->jointRingBaseRadiusMm * taper;
+
+		Handle( Geom_Circle ) geomCircle = new Geom_Circle(
+			gp_Ax2( gp::Origin(), gp::DZ() ), radius );
+		Handle( AIS_Circle ) ring = new AIS_Circle( geomCircle );
+		ring->SetColor( ringColor );
+		ring->SetWidth( 3.0 );
+
+		m_impl->jointRings.push_back( ring );
+	}
+}
+
+void RobotSceneFacade::refreshJointRingPoses()
+// Re-computes each ring's world placement from the current FK state and applies
+// it via SetLocalTransformation. Rings on distal links move whenever any upstream
+// joint rotates, so this needs to run on every FK tick while joint-mode is on.
+// gp_Trsf::SetDisplacement(fromSystem, toSystem) rigidly moves a shape whose
+// coordinates are expressed in fromSystem so that after the transform they have
+// the same coordinates in toSystem — for a Geom_Circle built at (origin, +Z),
+// that maps it to (jointOrigin, jointAxis).
+{
+	auto ctx = m_impl->viewport.context();
+	if( ctx.IsNull() ) {
+		return;
+	}
+	if( m_impl->jointRings.empty() ) {
+		return;
+	}
+
+	const gp_Ax3 srcFrame( gp::Origin(), gp::DZ() );
+	for( int axis = 1; axis <= 6; ++axis ) {
+		const size_t idx = static_cast<size_t>( axis - 1 );
+		if( idx >= m_impl->jointRings.size() ) {
+			break;
+		}
+		Handle( AIS_Circle ) ring = m_impl->jointRings[ idx ];
+		if( ring.IsNull() ) {
+			continue;
+		}
+
+		gp_Pnt origin;
+		gp_Dir dir;
+		if( !axisFrameForIndex( axis, origin, dir ) ) {
+			continue;
+		}
+		const gp_Ax3 dstFrame( origin, dir );
+		gp_Trsf trsf;
+		trsf.SetDisplacement( srcFrame, dstFrame );
+		ring->SetLocalTransformation( trsf );
+
+		if( m_impl->jointRingsVisible ) {
+			ctx->Redisplay( ring, Standard_False );
+		}
+	}
+}
+
+void RobotSceneFacade::setJointRingsVisible( bool visible )
+// Batched Display / Erase so the operator toggling Joint mode gets one redraw,
+// not six. Also drives whether refreshJointRingPoses runs during FK updates,
+// avoiding pointless transform work while the rings are hidden.
+{
+	auto ctx = m_impl->viewport.context();
+	if( ctx.IsNull() ) {
+		return;
+	}
+	if( m_impl->jointRingsVisible == visible ) {
+		return;
+	}
+	m_impl->jointRingsVisible = visible;
+	for( auto& ring : m_impl->jointRings ) {
+		if( ring.IsNull() ) {
+			continue;
+		}
+		if( visible ) {
+			ctx->Display( ring, Standard_False );
+			// AIS_Circle is a datum object; whole-object selection (mode 0) is
+			// what the joint-drag picker needs to receive DetectedInteractive
+			// results. Auto-activation is normally on but explicit is safer for
+			// datum types where the default mode set can vary between OCCT
+			// releases.
+			ctx->Activate( ring, 0, Standard_False );
+		} else {
+			ctx->Erase( ring, Standard_False );
+		}
+	}
+}
+
+void RobotSceneFacade::pushAxisLookupToJointDrag()
+// Union of the two axis-lookup halves (link shapes + rings) handed to the joint-
+// drag picker as one flat map. Keeping the halves separate on the facade side lets
+// each be rebuilt independently: shapes change only on robot load, rings change
+// on load AND could in future be rebuilt on radius / color tuning without
+// touching the shape half.
+{
+	std::unordered_map<AIS_InteractiveObject*, int> merged = m_impl->shapeAxisLookup;
+	for( size_t i = 0; i < m_impl->jointRings.size(); ++i ) {
+		if( m_impl->jointRings[ i ].IsNull() ) {
+			continue;
+		}
+		merged.emplace( m_impl->jointRings[ i ].get(), static_cast<int>( i + 1 ) );
+	}
+	m_impl->jointDrag.setAxisLookup( std::move( merged ) );
 }
 
 IRobotScene* createRobotScene()

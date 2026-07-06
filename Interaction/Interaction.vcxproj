@@ -73,11 +73,13 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="CameraController.h" />
+    <ClInclude Include="JointDragController.h" />
     <ClInclude Include="ManipulatorController.h" />
     <ClInclude Include="MouseInteractor.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="CameraController.cpp" />
+    <ClCompile Include="JointDragController.cpp" />
     <ClCompile Include="ManipulatorController.cpp" />
     <ClCompile Include="MouseInteractor.cpp" />
   </ItemGroup>

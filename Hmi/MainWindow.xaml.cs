@@ -1027,18 +1027,51 @@ namespace Hmi
 
 		private void RbGizmoMode_Checked( object sender, RoutedEventArgs e )
 		{
-			// Both Translate and Rotate radios route here; look at which one is
-			// checked. Guard on _viewer because the initial XAML IsChecked="True"
-			// fires the Checked event during InitializeComponent(), before the
-			// viewer field is assigned in the constructor.
+			// Both Translate and Rotate radios route here. Only meaningful when the
+			// Drag Target is TCP; if Joint is currently selected, PushGizmoMode still
+			// pushes Joint to the native side and the Gizmo radios are effectively
+			// stashed for the next time the operator switches back to TCP.
+			// Guard on _viewer because the initial XAML IsChecked="True" fires the
+			// Checked event during InitializeComponent(), before the viewer field is
+			// assigned in the constructor.
 			if( _viewer == null ) {
 				return;
 			}
-			// 0 = Translate, 1 = Rotate — must match IRobotScene::GizmoMode.
-			int mode = ( RbGizmoRotate != null && RbGizmoRotate.IsChecked == true ) ? 1 : 0;
+			PushGizmoMode();
+		}
+
+		private void RbDragTarget_Checked( object sender, RoutedEventArgs e )
+		{
+			// Drag Target radios flip between TCP (uses the AIS_Manipulator gizmo,
+			// styled by the Gizmo radios) and Joint (per-link picker, gizmo hidden).
+			// Same InitializeComponent guard as RbGizmoMode_Checked.
+			if( _viewer == null ) {
+				return;
+			}
+			PushGizmoMode();
+		}
+
+		private void PushGizmoMode()
+		{
+			// Consolidates both radio groups into the single int the native facade's
+			// setGizmoMode consumes. Mapping (must match IRobotScene::GizmoMode):
+			//   Drag Target = Joint            → 2 (Joint)   — Gizmo radios ignored
+			//   Drag Target = TCP + Translate → 0 (Translate)
+			//   Drag Target = TCP + Rotate    → 1 (Rotate)
+			int mode;
+			string label;
+			if( RbDragJoint != null && RbDragJoint.IsChecked == true ) {
+				mode  = 2;
+				label = "Drag target: joint — click a link to rotate its axis.";
+			} else if( RbGizmoRotate != null && RbGizmoRotate.IsChecked == true ) {
+				mode  = 1;
+				label = "Gizmo: rotate — drag a ring to reorient TCP.";
+			} else {
+				mode  = 0;
+				label = "Gizmo: translate — drag an arrow to move TCP.";
+			}
 			_viewer.SetGizmoMode( mode );
-			SetStatus( mode == 1 ? "Gizmo: rotate — drag a ring to reorient TCP."
-								 : "Gizmo: translate — drag an arrow to move TCP." );
+			SetStatus( label );
 		}
 
 		private void ApplyAxisLimits( double[][] limits )
