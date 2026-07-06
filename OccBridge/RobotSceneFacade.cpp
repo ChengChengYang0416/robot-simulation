@@ -224,6 +224,16 @@ void RobotSceneFacade::updateRobotTransforms()
 	if( auto tcp = m_impl->kin.tcpFrame() ) {
 		m_impl->repo.setTcpTransform( *tcp );
 		m_impl->trail.pushPose( *tcp );
+		// Re-pose the drag gizmo whenever joints move through a non-drag path
+		// (MoveJ / MoveL / setJointAngle / Reset-to-Home). AIS_Manipulator's
+		// SetAdjustPosition only aligns on Attach() — it does NOT track later
+		// SetLocalTransformation calls on the anchor trihedron. Without this
+		// resync the gizmo remains at the last drag mouse-up position while
+		// the arm animates elsewhere, and the operator sees the "end marker"
+		// stranded away from the robot after Home.
+		if( m_impl->dragGizmo.isEnabled() ) {
+			m_impl->dragGizmo.syncToPose( *tcp );
+		}
 	}
 
 	m_impl->repo.updateViewer();
