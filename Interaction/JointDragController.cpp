@@ -115,14 +115,45 @@ bool JointDragController::onMouseDown( int x, int y, int button )
 		return false;
 	}
 
+	// Compute radial from the ACTUAL click location on the ring, not from an
+	// arbitrary world-axis helper. Tangent direction reverses on opposite sides
+	// of a circle, so a fixed radial gives the correct sign only when the user
+	// happens to click near it — for every other click the drag feels inverted.
+	// Unproject the click into a world ray (view.ConvertWithProj), intersect the
+	// plane containing the ring (normal = axis, through origin), and use the
+	// hit point to build radial.
+	const gp_XYZ  dirXYZ = dir.XYZ();
+	Standard_Real px = 0.0, py = 0.0, pz = 0.0, vx = 0.0, vy = 0.0, vz = 0.0;
+	m_view->ConvertWithProj( x, y, px, py, pz, vx, vy, vz );
+	const gp_XYZ rayOrigin( px, py, pz );
+	gp_XYZ       rayDir( vx, vy, vz );
+	if( rayDir.SquareModulus() > 0.0 ) {
+		rayDir.Normalize();
+	}
+	gp_XYZ       radial;
+	const double denom = rayDir.Dot( dirXYZ );
+	if( std::abs( denom ) > 1.0e-6 ) {
+		// Solve rayOrigin + t·rayDir hits plane {P : (P - origin)·axis = 0}
+		const double t          = ( origin.XYZ() - rayOrigin ).Dot( dirXYZ ) / denom;
+		const gp_XYZ hit        = rayOrigin + rayDir * t;
+		gp_XYZ       radialRaw  = hit - origin.XYZ();
+		radialRaw               -= dirXYZ * radialRaw.Dot( dirXYZ );   // remove axial drift
+		if( radialRaw.SquareModulus() > 1.0e-9 ) {
+			radial = radialRaw;
+			radial.Normalize();
+		} else {
+			radial = perpendicular( dirXYZ );   // click at axis centre, degenerate
+		}
+	} else {
+		radial = perpendicular( dirXYZ );       // ray parallel to ring plane, degenerate
+	}
+
 	// Compute a world-space tangent for a small +dθ rotation, then project two points
 	// (P0 and P0 + tangent) to screen coordinates. The screen delta between them IS
 	// the screen tangent for +dθ, with the correct sign baked in by the right-hand
 	// rule. This sidesteps every sign-flip corner case that a per-axis view-direction
 	// heuristic would need to handle (axis pointing into vs. out of the screen, Y-up
 	// vs. Y-down screen conventions, etc.).
-	const gp_XYZ dirXYZ  = dir.XYZ();
-	const gp_XYZ radial  = perpendicular( dirXYZ );                      // r ⊥ axis, ||r|| = 1
 	const gp_XYZ tangent = dirXYZ.Crossed( radial );                     // axis × r → +dθ tangent
 	const gp_XYZ P0      = origin.XYZ() + radial  * kReferenceRadiusMm;
 	const gp_XYZ P1      = P0            + tangent * kReferenceRadiusMm;
