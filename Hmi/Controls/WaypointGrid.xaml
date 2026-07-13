@@ -15,13 +15,15 @@
 
     <DockPanel>
         <!-- Command strip: Add captures current TCP via the injected PoseProvider,
-             the rest operate on the DataGrid's SelectedIndex. -->
+             Start dispatches the selected row through StartRequested, the rest
+             operate on the DataGrid's SelectedIndex. -->
         <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,6">
             <Button Name="BtnAdd"    Content="Add"    Padding="8,4" Margin="0,0,4,0" Click="BtnAdd_Click"/>
             <Button Name="BtnDelete" Content="Delete" Padding="8,4" Margin="0,0,4,0" Click="BtnDelete_Click"/>
             <Button Name="BtnUp"     Content="↑"      Padding="8,4" Margin="0,0,4,0" Click="BtnUp_Click"/>
             <Button Name="BtnDown"   Content="↓"      Padding="8,4" Margin="0,0,4,0" Click="BtnDown_Click"/>
-            <Button Name="BtnClear"  Content="Clear"  Padding="8,4"                  Click="BtnClear_Click"/>
+            <Button Name="BtnClear"  Content="Clear"  Padding="8,4" Margin="0,0,12,0" Click="BtnClear_Click"/>
+            <Button Name="BtnStart"  Content="Start"  Padding="8,4" FontWeight="Bold" Click="BtnStart_Click"/>
         </StackPanel>
 
         <!-- Waypoint table. Column widths sum wider than the 420 px left panel on

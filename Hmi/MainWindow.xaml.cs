@@ -139,6 +139,7 @@ namespace Hmi
 			// fall back to a zero-pose waypoint for off-line teaching.
 			TeachGrid.Store = _waypointStore;
 			TeachGrid.PoseProvider = () => _viewer?.GetTcpPose();
+			TeachGrid.StartRequested = StartWaypoint;
 
 			var lastFolder = GetLastModelFolder();
 			if( lastFolder != null && Directory.Exists( lastFolder ) ) {
@@ -1067,6 +1068,48 @@ namespace Hmi
 			UpdateStopButtonState();
 			SetStatus( $"{statusLabel}: max Δ {maxDelta:F1}° in {dominant.DurationSec:F2} s" );
 			return true;
+		}
+
+		private void StartWaypoint( Waypoint wp )
+		{
+			// Single-waypoint dispatch (3.8.2). Routes to the MoveL / MoveJ kernel
+			// extracted in 3.8.1 based on wp.Motion, applying wp.VRatio as the
+			// speed override. Deliberately fire-and-forget: no queueing, no
+			// pause/resume, no completion callback — 3.10's WaypointSequencePlayer
+			// layers those on top of the same kernels.
+			if( wp == null ) return;
+			if( !_robotLoaded ) {
+				SetStatus( "Load a robot first." );
+				return;
+			}
+
+			var target = wp.PoseXyzAbc;
+			double vRatio = wp.VRatio;
+
+			if( wp.Motion == MotionType.J ) {
+				// Joint-space: resolve the target TCP into joint angles first (one-shot
+				// IK), then hand off. Scaling all three MoveJ caps (speed/accel/jerk)
+				// by the same ratio preserves the S-curve shape and just stretches
+				// the duration — same convention as StartMoveLToPoseTarget.
+				var targetJoints = new double[ JointCount ];
+				int status = _viewer.SolveTcpIk( target, _jointMin, _jointMax, targetJoints );
+				if( status != 0 ) {
+					SetStatus( status == 2
+						? $"MoveJ → {wp.Name}: target unreachable (IK did not converge)."
+						: $"MoveJ → {wp.Name}: invalid IK configuration." );
+					return;
+				}
+				StartMoveJToJointTarget( targetJoints,
+					MoveJSpeedDegPerSec  * vRatio,
+					MoveJAccelDegPerSec2 * vRatio,
+					MoveJJerkDegPerSec3  * vRatio,
+					$"MoveJ → {wp.Name}" );
+			} else {
+				StartMoveLToPoseTarget( target,
+					vRatioLin: vRatio,
+					vRatioAng: vRatio,
+					statusLabel: $"MoveL → {wp.Name}" );
+			}
 		}
 
 		private void MoveJTimer_Tick( object sender, EventArgs e )

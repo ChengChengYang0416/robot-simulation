@@ -44,6 +44,15 @@ namespace Hmi.Controls
 		/// </summary>
 		public Func<double[]> PoseProvider { get; set; }
 
+		/// <summary>
+		/// Callback the Start button raises with the selected waypoint. MainWindow
+		/// dispatches to the MoveL / MoveJ kernel based on <see cref="Waypoint.Motion"/>;
+		/// this control stays ignorant of motion primitives. Unset → button is a no-op.
+		/// 3.10 will layer <c>WaypointSequencePlayer</c> on top of the same kernels;
+		/// the Start button remains the single-shot / manual entry point.
+		/// </summary>
+		public Action<Waypoint> StartRequested { get; set; }
+
 		private void BtnAdd_Click( object sender, RoutedEventArgs e )
 		{
 			if( _store == null ) return;
@@ -97,6 +106,14 @@ namespace Hmi.Controls
 			if( result == MessageBoxResult.OK ) {
 				_store.Clear();
 			}
+		}
+
+		private void BtnStart_Click( object sender, RoutedEventArgs e )
+		{
+			if( StartRequested == null ) return;
+			var wp = Grid.SelectedItem as Waypoint;
+			if( wp == null ) return;
+			StartRequested( wp );
 		}
 	}
 }
