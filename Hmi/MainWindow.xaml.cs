@@ -367,6 +367,82 @@ namespace Hmi
 			SetStatus( "TCP trail cleared." );
 		}
 
+		private void MenuTrailColor_Click( object sender, RoutedEventArgs e )
+		{
+			// Preset colour picker: Tag = "R,G,B" (0..255 each) so the XAML stays
+			// declarative and the code-behind stays a thin router. Using a
+			// checkable-menu radio group matches the mode picker above; a real
+			// colour picker would require Extended.Wpf.Toolkit which we deliberately
+			// don't take as a dependency for six preset swatches.
+			if( !( sender is MenuItem clicked ) || clicked.Tag == null ) {
+				return;
+			}
+			var parts = clicked.Tag.ToString().Split( ',' );
+			if( parts.Length != 3
+				|| !int.TryParse( parts[ 0 ], out int r )
+				|| !int.TryParse( parts[ 1 ], out int g )
+				|| !int.TryParse( parts[ 2 ], out int b ) ) {
+				return;
+			}
+
+			clicked.IsChecked = true;
+			MenuTrailColorYellow .IsChecked = ReferenceEquals( clicked, MenuTrailColorYellow  );
+			MenuTrailColorCyan   .IsChecked = ReferenceEquals( clicked, MenuTrailColorCyan    );
+			MenuTrailColorMagenta.IsChecked = ReferenceEquals( clicked, MenuTrailColorMagenta );
+			MenuTrailColorGreen  .IsChecked = ReferenceEquals( clicked, MenuTrailColorGreen   );
+			MenuTrailColorRed    .IsChecked = ReferenceEquals( clicked, MenuTrailColorRed     );
+			MenuTrailColorWhite  .IsChecked = ReferenceEquals( clicked, MenuTrailColorWhite   );
+
+			_viewer.SetTcpTrailColor( r, g, b );
+			SetStatus( "TCP trail color: " + clicked.Header.ToString() + "." );
+		}
+
+		private void MenuTrailMaxPoints_Click( object sender, RoutedEventArgs e )
+		{
+			// Preset ring-buffer caps. The native side clamps to a hard upper
+			// bound, so a bad Tag can't blow up memory. Same radio-group idiom
+			// as the mode picker.
+			if( !( sender is MenuItem clicked ) || clicked.Tag == null ) {
+				return;
+			}
+			if( !int.TryParse( clicked.Tag.ToString(), out int maxPoints ) ) {
+				return;
+			}
+
+			clicked.IsChecked = true;
+			MenuTrailMax500  .IsChecked = ( maxPoints == 500 );
+			MenuTrailMax1000 .IsChecked = ( maxPoints == 1000 );
+			MenuTrailMax2000 .IsChecked = ( maxPoints == 2000 );
+			MenuTrailMax5000 .IsChecked = ( maxPoints == 5000 );
+			MenuTrailMax10000.IsChecked = ( maxPoints == 10000 );
+
+			_viewer.SetTcpTrailMaxPoints( maxPoints );
+			SetStatus( "TCP trail max points: " + maxPoints + "." );
+		}
+
+		private void MenuTrailStride_Click( object sender, RoutedEventArgs e )
+		{
+			// Frame stride only takes visible effect while PolylineWithFrames is
+			// active; the native side stores it regardless so a later mode switch
+			// picks it up without needing another user click.
+			if( !( sender is MenuItem clicked ) || clicked.Tag == null ) {
+				return;
+			}
+			if( !int.TryParse( clicked.Tag.ToString(), out int stride ) ) {
+				return;
+			}
+
+			clicked.IsChecked = true;
+			MenuTrailStride10 .IsChecked = ( stride == 10 );
+			MenuTrailStride25 .IsChecked = ( stride == 25 );
+			MenuTrailStride50 .IsChecked = ( stride == 50 );
+			MenuTrailStride100.IsChecked = ( stride == 100 );
+			MenuTrailStride200.IsChecked = ( stride == 200 );
+
+			_viewer.SetTcpTrailFrameStride( stride );
+			SetStatus( "TCP trail frame stride: " + stride + "." );
+		}
+
 		private void SaveScreenshot_Executed( object sender, System.Windows.Input.ExecutedRoutedEventArgs e )
 		{
 			// Default filename includes a timestamp so rapid captures do not overwrite each other.

@@ -1,4 +1,5 @@
 #include "TcpTrail.h"
+#include <algorithm>
 #include <BRepBuilderAPI_MakeEdge.hxx>
 #include <BRepBuilderAPI_MakeWire.hxx>
 #include <Geom_Axis2Placement.hxx>
@@ -70,10 +71,10 @@ void TcpTrail::pushPose( const gp_Trsf& tcp )
 		return;  // hot-path fast exit when disabled
 	}
 
-	// Ring buffer behaviour: cap at kTcpTrailMaxPoints so memory + per-tick
+	// Ring buffer behaviour: cap at m_maxPoints so memory + per-tick
 	// polyline rebuild stay bounded during long jogs / MoveL playback.
 	m_points.push_back( tcp );
-	if( static_cast<int>( m_points.size() ) > kTcpTrailMaxPoints ) {
+	while( static_cast<int>( m_points.size() ) > m_maxPoints ) {
 		m_points.pop_front();
 	}
 
@@ -136,7 +137,7 @@ void TcpTrail::rebuildPolyline()
 	// Display mode 0 = wireframe (AIS_WireFrame). Wires have no faces to shade,
 	// so mode 1 would silently fall back to wireframe anyway.
 	m_context->Display( m_polyline, 0, -1, Standard_False );
-	m_context->SetColor( m_polyline, Quantity_Color( Quantity_NOC_YELLOW ), Standard_False );
+	m_context->SetColor( m_polyline, m_lineColor, Standard_False );
 	m_context->SetWidth( m_polyline, kTcpTrailLineWidth, Standard_False );
 }
 
@@ -147,8 +148,8 @@ void TcpTrail::rebuildFrames()
 	}
 
 	// Drop the existing trihedrons. Pooling + setLocalTransformation would avoid
-	// the AIS allocation, but the count is bounded (≤ kTcpTrailMaxPoints /
-	// kTcpTrailFrameStride ≈ 40) and the rebuild is gated by pushPose() being
+	// the AIS allocation, but the count is bounded (≤ m_maxPoints /
+	// m_frameStride, default ≈ 40) and the rebuild is gated by pushPose() being
 	// triggered, so simplicity wins over micro-optimisation here.
 	for( const auto& frame : m_frames ) {
 		if( !frame.IsNull() ) {
@@ -186,14 +187,80 @@ void TcpTrail::rebuildFrames()
 	};
 
 	const int n = static_cast<int>( m_points.size() );
-	for( int i = 0; i < n; i += kTcpTrailFrameStride ) {
+	for( int i = 0; i < n; i += m_frameStride ) {
 		displayFrame( m_points[ i ] );
 	}
 	// Always include the most recent sample even when (n - 1) is not on a
 	// stride boundary, so the head of the trail shows the current orientation.
 	const int tail = n - 1;
-	if( tail > 0 && ( tail % kTcpTrailFrameStride ) != 0 ) {
+	if( tail > 0 && ( tail % m_frameStride ) != 0 ) {
 		displayFrame( m_points[ tail ] );
+	}
+}
+
+void TcpTrail::setMaxPoints( int maxPoints )
+{
+	// Hard clamp to sane bounds. Minimum 2 keeps the polyline drawable; upper
+	// bound bounds per-tick rebuild work and RAM usage.
+	const int clamped = std::clamp( maxPoints, 2, kAbsoluteTrailMaxPoints );
+	if( clamped == m_maxPoints ) {
+		return;
+	}
+	m_maxPoints = clamped;
+
+	// Shrink existing buffer if the new cap is tighter, then re-render so the
+	// visible trail matches the new bound immediately (rather than waiting for
+	// the next pushPose to notice the overflow).
+	bool shrunk = false;
+	while( static_cast<int>( m_points.size() ) > m_maxPoints ) {
+		m_points.pop_front();
+		shrunk = true;
+	}
+	if( shrunk && m_mode != Mode::Off ) {
+		rebuildPolyline();
+		if( m_mode == Mode::PolylineWithFrames ) {
+			rebuildFrames();
+		}
+		if( !m_context.IsNull() ) {
+			m_context->UpdateCurrentViewer();
+		}
+	}
+}
+
+void TcpTrail::setFrameStride( int stride )
+{
+	const int clamped = std::clamp( stride, 1, kAbsoluteTrailMaxStride );
+	if( clamped == m_frameStride ) {
+		return;
+	}
+	m_frameStride = clamped;
+
+	// Only PolylineWithFrames consumes the stride; other modes will pick it up
+	// on the next mode switch.
+	if( m_mode == Mode::PolylineWithFrames ) {
+		rebuildFrames();
+		if( !m_context.IsNull() ) {
+			m_context->UpdateCurrentViewer();
+		}
+	}
+}
+
+void TcpTrail::setColor( int r, int g, int b )
+{
+	const int rc = std::clamp( r, 0, 255 );
+	const int gc = std::clamp( g, 0, 255 );
+	const int bc = std::clamp( b, 0, 255 );
+	// Quantity_Color RGB constructor takes doubles in [0, 1]; sRGB is the
+	// default colour space and matches OCCT's other named-colour presets so
+	// yellow-in stays yellow-out on screen.
+	m_lineColor = Quantity_Color(
+		rc / 255.0, gc / 255.0, bc / 255.0, Quantity_TOC_RGB );
+
+	// Re-tint the currently displayed polyline without touching the buffer or
+	// rebuilding geometry — colour is a pure presentation property.
+	if( !m_context.IsNull() && !m_polyline.IsNull() ) {
+		m_context->SetColor( m_polyline, m_lineColor, Standard_False );
+		m_context->UpdateCurrentViewer();
 	}
 }
 

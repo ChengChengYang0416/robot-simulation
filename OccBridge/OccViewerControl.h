@@ -110,6 +110,20 @@ namespace OccBridge {
 		// Erases the displayed TCP trail. Sampling continues if mode != Off, so the
 		// trail will rebuild from the next joint update onwards.
 
+		void SetTcpTrailMaxPoints( int maxPoints );
+		// Updates the TCP-trail ring-buffer cap. Values are clamped in the native
+		// layer to [2, kAbsoluteTrailMaxPoints]. Shrinking the cap trims the
+		// current buffer and rebuilds the visible polyline / frames immediately.
+
+		void SetTcpTrailFrameStride( int stride );
+		// Updates the sub-sampling stride used by the PolylineWithFrames trail
+		// mode. Clamped in the native layer; only visible while the frame mode
+		// is active but stored either way.
+
+		void SetTcpTrailColor( int r, int g, int b );
+		// Sets the trail polyline colour (RGB components 0..255, clamped in the
+		// native layer). Frame trihedrons keep their X/Y/Z axis colours.
+
 		bool SaveScreenshot( String^ path );
 		// Saves the current view to an image file (PNG / JPG / BMP / TIFF inferred
 		// from the path extension). Returns false when the viewer is not initialized,

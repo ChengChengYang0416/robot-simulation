@@ -321,6 +321,32 @@ namespace OccBridge {
 		}
 	}
 
+	void OccViewerControl::SetTcpTrailMaxPoints( int maxPoints )
+	// Forwards the ring-buffer cap. Native layer clamps out-of-range values so
+	// the managed side is free to hand any int through without pre-validation.
+	{
+		if( m_bInitialized ) {
+			m_pNative->setTcpTrailMaxPoints( maxPoints );
+		}
+	}
+
+	void OccViewerControl::SetTcpTrailFrameStride( int stride )
+	// Forwards the frame stride to the native trail. Only PolylineWithFrames
+	// mode consumes it visually; other modes just cache the value.
+	{
+		if( m_bInitialized ) {
+			m_pNative->setTcpTrailFrameStride( stride );
+		}
+	}
+
+	void OccViewerControl::SetTcpTrailColor( int r, int g, int b )
+	// Forwards RGB (0..255) to the native trail. Native layer clamps components.
+	{
+		if( m_bInitialized ) {
+			m_pNative->setTcpTrailColor( r, g, b );
+		}
+	}
+
 	bool OccViewerControl::SaveScreenshot( String^ path )
 	// Marshals the managed path to a native wide string and forwards to the native dumper
 	{

@@ -26,6 +26,29 @@
                     <MenuItem Name="MenuTrailLine"     Header="TCP Path"                  IsCheckable="True"                   Click="MenuTrailMode_Click" Tag="1"/>
                     <MenuItem Name="MenuTrailFrames"   Header="TCP Path + Frames"         IsCheckable="True"                   Click="MenuTrailMode_Click" Tag="2"/>
                     <Separator/>
+                    <MenuItem Header="Color">
+                        <MenuItem Name="MenuTrailColorYellow"  Header="Yellow"  IsCheckable="True" IsChecked="True" Click="MenuTrailColor_Click" Tag="255,255,0"/>
+                        <MenuItem Name="MenuTrailColorCyan"    Header="Cyan"    IsCheckable="True"                  Click="MenuTrailColor_Click" Tag="0,255,255"/>
+                        <MenuItem Name="MenuTrailColorMagenta" Header="Magenta" IsCheckable="True"                  Click="MenuTrailColor_Click" Tag="255,0,255"/>
+                        <MenuItem Name="MenuTrailColorGreen"   Header="Green"   IsCheckable="True"                  Click="MenuTrailColor_Click" Tag="0,255,0"/>
+                        <MenuItem Name="MenuTrailColorRed"     Header="Red"     IsCheckable="True"                  Click="MenuTrailColor_Click" Tag="255,64,64"/>
+                        <MenuItem Name="MenuTrailColorWhite"   Header="White"   IsCheckable="True"                  Click="MenuTrailColor_Click" Tag="255,255,255"/>
+                    </MenuItem>
+                    <MenuItem Header="Max Points">
+                        <MenuItem Name="MenuTrailMax500"   Header="500"    IsCheckable="True"                  Click="MenuTrailMaxPoints_Click" Tag="500"/>
+                        <MenuItem Name="MenuTrailMax1000"  Header="1000"   IsCheckable="True"                  Click="MenuTrailMaxPoints_Click" Tag="1000"/>
+                        <MenuItem Name="MenuTrailMax2000"  Header="2000"   IsCheckable="True" IsChecked="True" Click="MenuTrailMaxPoints_Click" Tag="2000"/>
+                        <MenuItem Name="MenuTrailMax5000"  Header="5000"   IsCheckable="True"                  Click="MenuTrailMaxPoints_Click" Tag="5000"/>
+                        <MenuItem Name="MenuTrailMax10000" Header="10000"  IsCheckable="True"                  Click="MenuTrailMaxPoints_Click" Tag="10000"/>
+                    </MenuItem>
+                    <MenuItem Header="Frame Stride">
+                        <MenuItem Name="MenuTrailStride10"  Header="10"   IsCheckable="True"                  Click="MenuTrailStride_Click" Tag="10"/>
+                        <MenuItem Name="MenuTrailStride25"  Header="25"   IsCheckable="True"                  Click="MenuTrailStride_Click" Tag="25"/>
+                        <MenuItem Name="MenuTrailStride50"  Header="50"   IsCheckable="True" IsChecked="True" Click="MenuTrailStride_Click" Tag="50"/>
+                        <MenuItem Name="MenuTrailStride100" Header="100"  IsCheckable="True"                  Click="MenuTrailStride_Click" Tag="100"/>
+                        <MenuItem Name="MenuTrailStride200" Header="200"  IsCheckable="True"                  Click="MenuTrailStride_Click" Tag="200"/>
+                    </MenuItem>
+                    <Separator/>
                     <MenuItem Header="Clear Trail" Click="MenuTrailClear_Click"/>
                 </MenuItem>
             </MenuItem>

@@ -167,6 +167,22 @@ public:
 	// Empties the TCP history buffer and removes the displayed polyline / frames
 	// from the viewer. Mode is preserved so the next joint update repopulates.
 
+	virtual void setTcpTrailMaxPoints( int maxPoints ) = 0;
+	// Updates the ring-buffer cap for the TCP trail. The implementation clamps
+	// to a sane range (min 2, project-defined upper bound) and rebuilds the
+	// visible polyline / frames immediately when the new cap shrinks below the
+	// current buffer size. Values that don't change the effective cap are no-ops.
+
+	virtual void setTcpTrailFrameStride( int stride ) = 0;
+	// Updates the sub-sampling stride used by the PolylineWithFrames trail mode.
+	// Clamped by the implementation; only takes visual effect while mode is
+	// PolylineWithFrames but is stored for the next mode switch either way.
+
+	virtual void setTcpTrailColor( int r, int g, int b ) = 0;
+	// Sets the trail polyline colour. Components are 0..255; out-of-range values
+	// are clamped. The frame trihedrons keep their X/Y/Z axis colours (blue /
+	// green / red) so orientation stays legible regardless of the trail tint.
+
 	// ---- Mouse / interaction ---------------------------------------------------
 
 	virtual void onMouseDown( int x, int y, int button ) = 0;

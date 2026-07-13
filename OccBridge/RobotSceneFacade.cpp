@@ -374,6 +374,27 @@ void RobotSceneFacade::clearTcpTrail()
 	m_impl->trail.clear();
 }
 
+void RobotSceneFacade::setTcpTrailMaxPoints( int maxPoints )
+// Forwards to Scene::TcpTrail which owns the clamp + shrink-on-decrease logic.
+// Kept as a pass-through so all sanitisation lives in one place.
+{
+	m_impl->trail.setMaxPoints( maxPoints );
+}
+
+void RobotSceneFacade::setTcpTrailFrameStride( int stride )
+// Forwards to Scene::TcpTrail. Only PolylineWithFrames mode rebuilds visually;
+// the stride is stored otherwise so the next mode switch honours it.
+{
+	m_impl->trail.setFrameStride( stride );
+}
+
+void RobotSceneFacade::setTcpTrailColor( int r, int g, int b )
+// Forwards to Scene::TcpTrail. RGB components are 0..255; the trail clamps and
+// re-tints the polyline in-place without touching geometry / buffer state.
+{
+	m_impl->trail.setColor( r, g, b );
+}
+
 void RobotSceneFacade::fitAll()
 // Delegates to CameraController::fitAll (FitAll + ZFitAll + Redraw).
 {

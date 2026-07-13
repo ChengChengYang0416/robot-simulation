@@ -61,6 +61,9 @@ public:
 
 	void setTcpTrailMode( int mode ) override;
 	void clearTcpTrail() override;
+	void setTcpTrailMaxPoints( int maxPoints ) override;
+	void setTcpTrailFrameStride( int stride ) override;
+	void setTcpTrailColor( int r, int g, int b ) override;
 
 	void onMouseDown( int x, int y, int button ) override;
 	void onMouseMove( int x, int y, int buttonMask ) override;

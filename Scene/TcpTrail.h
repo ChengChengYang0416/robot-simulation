@@ -5,6 +5,8 @@
 #include <AIS_InteractiveContext.hxx>
 #include <AIS_Shape.hxx>
 #include <AIS_Trihedron.hxx>
+#include <Quantity_Color.hxx>
+#include <Quantity_NameOfColor.hxx>
 #include <gp_Trsf.hxx>
 
 namespace Scene {
@@ -53,6 +55,28 @@ public:
 	// context. Mode is preserved so the next pushPose() rebuilds in the same
 	// visualisation style.
 
+	void setMaxPoints( int maxPoints );
+	// Updates the ring-buffer cap. Values are clamped to [2, kAbsoluteTrailMaxPoints]
+	// so the polyline always has at least two points to draw and cannot grow
+	// unbounded from a bad HMI push. When the new cap is smaller than the current
+	// buffer size, oldest samples are dropped from the front and the polyline /
+	// frames are rebuilt to match. No-op when the value is unchanged.
+
+	void setFrameStride( int stride );
+	// Updates the sub-sampling stride used by PolylineWithFrames mode. Clamped
+	// to [1, kAbsoluteTrailMaxStride]. Rebuilds frames immediately when the mode
+	// is PolylineWithFrames; otherwise stored for the next mode switch.
+
+	void setColor( int r, int g, int b );
+	// Sets the polyline colour. Component values are clamped to [0, 255] and
+	// re-applied to the currently displayed polyline (if any). The frame
+	// trihedrons keep the X = blue, Y = green, Z = red convention because
+	// their per-axis colouring conveys orientation independently of the trail
+	// colour.
+
+	[[nodiscard]] int maxPoints() const noexcept { return m_maxPoints; }
+	[[nodiscard]] int frameStride() const noexcept { return m_frameStride; }
+
 	[[nodiscard]] int pointCount() const noexcept
 	{
 		return static_cast<int>( m_points.size() );
@@ -79,15 +103,23 @@ private:
 	Handle( AIS_Shape )              m_polyline;
 	std::vector<Handle( AIS_Trihedron )> m_frames;
 	Mode                             m_mode = Mode::Off;
+	int                              m_maxPoints    = 2000;
+	int                              m_frameStride  = 50;
+	Quantity_Color                   m_lineColor{ Quantity_NOC_YELLOW };
 };
 
-// Buffer caps. Tuned for a few seconds of MoveL at 3 ms tick (~1000 samples/s).
-// Frame stride keeps the trihedron count below ~40 to avoid visual clutter and
-// per-tick rebuild cost.
-inline constexpr int kTcpTrailMaxPoints   = 2000;
-inline constexpr int kTcpTrailFrameStride = 50;
-// Display sizes. Polyline width in pixels; frame size in scene units (mm).
-inline constexpr double kTcpTrailLineWidth = 2.0;
-inline constexpr double kTcpTrailFrameSize = 20.0;
+// Default buffer / visual tuning. Kept as `inline constexpr` so callers (e.g.
+// HMI wire values) can reference the same numbers used to seed a fresh trail.
+// Per-instance overrides go through setMaxPoints / setFrameStride / setColor.
+inline constexpr int    kDefaultTcpTrailMaxPoints   = 2000;
+inline constexpr int    kDefaultTcpTrailFrameStride = 50;
+inline constexpr double kTcpTrailLineWidth          = 2.0;
+inline constexpr double kTcpTrailFrameSize          = 20.0;
+// Hard safety caps so a bad HMI push cannot degenerate the visualisation.
+// kAbsoluteTrailMaxPoints keeps memory + per-tick polyline rebuild bounded;
+// kAbsoluteTrailMaxStride is loose (a very high stride just hides every marker
+// bar the tail one, which is a valid "polyline-only-ish" degenerate).
+inline constexpr int kAbsoluteTrailMaxPoints = 20000;
+inline constexpr int kAbsoluteTrailMaxStride = 2000;
 
 }  // namespace Scene
