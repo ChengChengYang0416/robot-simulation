@@ -1,0 +1,57 @@
+<UserControl x:Class="Hmi.Controls.WaypointGrid"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:models="clr-namespace:Hmi.Models"
+             xmlns:sys="clr-namespace:System;assembly=mscorlib">
+    <UserControl.Resources>
+        <!-- MotionType enum values feed the DataGridComboBoxColumn ItemsSource
+             so the Motion cell picks between L and J without hard-coding lists. -->
+        <ObjectDataProvider x:Key="MotionValues" MethodName="GetValues" ObjectType="{x:Type sys:Enum}">
+            <ObjectDataProvider.MethodParameters>
+                <x:Type TypeName="models:MotionType"/>
+            </ObjectDataProvider.MethodParameters>
+        </ObjectDataProvider>
+    </UserControl.Resources>
+
+    <DockPanel>
+        <!-- Command strip: Add captures current TCP via the injected PoseProvider,
+             the rest operate on the DataGrid's SelectedIndex. -->
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,6">
+            <Button Name="BtnAdd"    Content="Add"    Padding="8,4" Margin="0,0,4,0" Click="BtnAdd_Click"/>
+            <Button Name="BtnDelete" Content="Delete" Padding="8,4" Margin="0,0,4,0" Click="BtnDelete_Click"/>
+            <Button Name="BtnUp"     Content="↑"      Padding="8,4" Margin="0,0,4,0" Click="BtnUp_Click"/>
+            <Button Name="BtnDown"   Content="↓"      Padding="8,4" Margin="0,0,4,0" Click="BtnDown_Click"/>
+            <Button Name="BtnClear"  Content="Clear"  Padding="8,4"                  Click="BtnClear_Click"/>
+        </StackPanel>
+
+        <!-- Waypoint table. Column widths sum wider than the 420 px left panel on
+             purpose — the DataGrid's horizontal scrollbar keeps the numeric fields
+             readable at F3 precision instead of squeezed into truncated cells. -->
+        <DataGrid Name="Grid"
+                  AutoGenerateColumns="False"
+                  CanUserAddRows="False"
+                  CanUserDeleteRows="False"
+                  CanUserResizeRows="False"
+                  SelectionMode="Single"
+                  SelectionUnit="FullRow"
+                  HeadersVisibility="Column"
+                  GridLinesVisibility="Horizontal"
+                  RowHeight="24"
+                  FontFamily="Consolas">
+            <DataGrid.Columns>
+                <DataGridTextColumn     Header="Name"   Binding="{Binding Name}"                              Width="60"/>
+                <DataGridTextColumn     Header="X (mm)" Binding="{Binding X, StringFormat=F3}"                Width="70"/>
+                <DataGridTextColumn     Header="Y (mm)" Binding="{Binding Y, StringFormat=F3}"                Width="70"/>
+                <DataGridTextColumn     Header="Z (mm)" Binding="{Binding Z, StringFormat=F3}"                Width="70"/>
+                <DataGridTextColumn     Header="A (°)"  Binding="{Binding A, StringFormat=F3}"                Width="65"/>
+                <DataGridTextColumn     Header="B (°)"  Binding="{Binding B, StringFormat=F3}"                Width="65"/>
+                <DataGridTextColumn     Header="C (°)"  Binding="{Binding C, StringFormat=F3}"                Width="65"/>
+                <DataGridComboBoxColumn Header="Motion" SelectedItemBinding="{Binding Motion}"
+                                        ItemsSource="{Binding Source={StaticResource MotionValues}}"          Width="60"/>
+                <DataGridTextColumn     Header="V×"     Binding="{Binding VRatio, StringFormat=F2}"           Width="45"/>
+                <DataGridTextColumn     Header="A×"     Binding="{Binding ARatio, StringFormat=F2}"           Width="45"/>
+                <DataGridTextColumn     Header="Blend"  Binding="{Binding BlendRadius, StringFormat=F2}"      Width="55"/>
+            </DataGrid.Columns>
+        </DataGrid>
+    </DockPanel>
+</UserControl>

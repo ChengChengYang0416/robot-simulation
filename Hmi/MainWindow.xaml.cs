@@ -1,5 +1,6 @@
 using Microsoft.Win32;
 using OccBridge;
+using Hmi.Models;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -109,6 +110,11 @@ namespace Hmi
 		// joint-space and does not consult the Jacobian.)
 		private readonly double[] _singularityMetrics = new double[ 5 ];
 
+		// Teach-pendant queue (3.7). WaypointGrid CRUD writes into this store;
+		// 3.10's WaypointSequencePlayer will read from it. Owned here so save/load
+		// (3.9) can serialize the same instance without extra plumbing.
+		private readonly WaypointStore _waypointStore = new WaypointStore();
+
 		private const string RegistryKey = @"SOFTWARE\RobotSimulation";
 		private const string RegistryValue = "LastModelFolder";
 
@@ -126,6 +132,13 @@ namespace Hmi
 			// mouse-up so this handler covers both drag and camera-only clicks.
 			_viewer.JointsChanged += OnViewerJointsChanged;
 			SetStatus( "Ready" );
+
+			// Wire Teach-tab UI to the shared store. PoseProvider lets the grid's Add
+			// button capture the current TCP pose without taking a direct dependency
+			// on OccViewerControl; returning null (no robot loaded) makes the grid
+			// fall back to a zero-pose waypoint for off-line teaching.
+			TeachGrid.Store = _waypointStore;
+			TeachGrid.PoseProvider = () => _viewer?.GetTcpPose();
 
 			var lastFolder = GetLastModelFolder();
 			if( lastFolder != null && Directory.Exists( lastFolder ) ) {

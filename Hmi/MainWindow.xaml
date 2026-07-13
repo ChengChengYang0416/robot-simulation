@@ -277,6 +277,11 @@
                             </StackPanel>
                         </ScrollViewer>
                     </TabItem>
+
+                    <!-- ====== Teach Pendant (3.7) ====== -->
+                    <TabItem Header="Teach">
+                        <ctl:WaypointGrid x:Name="TeachGrid" Margin="8"/>
+                    </TabItem>
                 </TabControl>
 
                 <ctl:StatusDashboard Grid.Row="1" x:Name="Dashboard" Margin="12,0,12,12"/>
