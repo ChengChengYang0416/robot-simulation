@@ -26,6 +26,30 @@
             <Button Name="BtnStart"  Content="Start"  Padding="8,4" FontWeight="Bold" Click="BtnStart_Click"/>
         </StackPanel>
 
+        <!-- Sequence controls (3.8.3 / 3.10): Play walks the whole queue,
+             Pause stops at end of current segment, Step advances one, Stop
+             aborts. Buttons dim according to WaypointSequencePlayer.State. -->
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,6">
+            <Button   Name="BtnPlay"  Content="Play"  Padding="8,4" Margin="0,0,4,0"  FontWeight="Bold" Click="BtnPlay_Click"/>
+            <Button   Name="BtnPause" Content="Pause" Padding="8,4" Margin="0,0,4,0"  Click="BtnPause_Click"/>
+            <Button   Name="BtnStep"  Content="Step"  Padding="8,4" Margin="0,0,4,0"  Click="BtnStep_Click"/>
+            <Button   Name="BtnStop"  Content="Stop"  Padding="8,4" Margin="0,0,12,0" Click="BtnStop_Click"/>
+            <CheckBox Name="ChkLoop"  Content="Loop"  VerticalAlignment="Center"
+                      Checked="ChkLoop_Changed" Unchecked="ChkLoop_Changed"/>
+        </StackPanel>
+
+        <!-- Speed override slider (0.1..2.0×) composes with each waypoint's
+             own VRatio at dispatch time; live edits take effect on the next
+             segment (the running segment keeps its planned S-curve profile). -->
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,6">
+            <TextBlock Text="Speed:" VerticalAlignment="Center" Margin="0,0,4,0"/>
+            <Slider Name="SldSpeed" Minimum="0.1" Maximum="2.0" Value="1.0"
+                    TickFrequency="0.1" TickPlacement="BottomRight"
+                    Width="200" VerticalAlignment="Center"
+                    ValueChanged="SldSpeed_ValueChanged"/>
+            <TextBlock Name="TxtSpeed" Text="1.00×" VerticalAlignment="Center" Margin="6,0,0,0" FontFamily="Consolas"/>
+        </StackPanel>
+
         <!-- Waypoint table. Column widths sum wider than the 420 px left panel on
              purpose — the DataGrid's horizontal scrollbar keeps the numeric fields
              readable at F3 precision instead of squeezed into truncated cells. -->

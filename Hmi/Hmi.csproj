@@ -98,6 +98,8 @@
     </Compile>
     <Compile Include="Models\Waypoint.cs" />
     <Compile Include="Models\WaypointStore.cs" />
+    <Compile Include="Motion\IWaypointSegmentExecutor.cs" />
+    <Compile Include="Motion\WaypointSequencePlayer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

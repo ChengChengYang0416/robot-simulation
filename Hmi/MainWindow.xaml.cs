@@ -1,6 +1,7 @@
 using Microsoft.Win32;
 using OccBridge;
 using Hmi.Models;
+using Hmi.Motion;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -18,7 +19,7 @@ using System.Runtime.InteropServices;
 
 namespace Hmi
 {
-	public partial class MainWindow : Window
+	public partial class MainWindow : Window, IWaypointSegmentExecutor
 	{
 		private readonly OccViewerControl _viewer;
 		private bool _robotLoaded;
@@ -115,6 +116,19 @@ namespace Hmi
 		// (3.9) can serialize the same instance without extra plumbing.
 		private readonly WaypointStore _waypointStore = new WaypointStore();
 
+		// Sequence player (3.10). Constructed after InitializeComponent so the
+		// executor `this` reference is fully live. Player wires the executor's
+		// SegmentFinished event in its own constructor.
+		private WaypointSequencePlayer _sequencePlayer;
+
+		// Completion-status latches for the SegmentFinished event: tick sets this
+		// to true just before the reachedEnd path calls StopMove*, so the unified
+		// stop path can fire SegmentFinished(true) for natural completion and
+		// SegmentFinished(false) for every other termination (user Stop, abort,
+		// external cancel-in-flight).
+		private bool _moveLCompletingOk;
+		private bool _moveJCompletingOk;
+
 		private const string RegistryKey = @"SOFTWARE\RobotSimulation";
 		private const string RegistryValue = "LastModelFolder";
 
@@ -140,6 +154,13 @@ namespace Hmi
 			TeachGrid.Store = _waypointStore;
 			TeachGrid.PoseProvider = () => _viewer?.GetTcpPose();
 			TeachGrid.StartRequested = StartWaypoint;
+
+			// Sequence player (3.10). MainWindow implements IWaypointSegmentExecutor,
+			// so `this` is the executor. Player subscribes to SegmentFinished in its
+			// ctor; the tick / StopMove* paths below fire the event.
+			_sequencePlayer = new WaypointSequencePlayer( this );
+			_sequencePlayer.StateChanged += OnSequenceStateChanged;
+			TeachGrid.Player = _sequencePlayer;
 
 			var lastFolder = GetLastModelFolder();
 			if( lastFolder != null && Directory.Exists( lastFolder ) ) {
@@ -911,6 +932,7 @@ namespace Hmi
 			ApplyAllJointAngles( outAngles );
 
 			if( reachedEnd ) {
+				_moveLCompletingOk = true;
 				StopMoveL( silent: true );
 				SetStatus( "MoveL: target reached." );
 			}
@@ -918,6 +940,9 @@ namespace Hmi
 
 		private void StopMoveL( bool silent )
 		{
+			bool wasActive = _moveLStart != null;
+			bool completingOk = _moveLCompletingOk;
+			_moveLCompletingOk = false;
 			_moveLTimer?.Stop();
 			_moveLStart = null;
 			_moveLTarget = null;
@@ -925,6 +950,9 @@ namespace Hmi
 			UpdateStopButtonState();
 			if( !silent ) {
 				SetStatus( "MoveL stopped." );
+			}
+			if( wasActive ) {
+				SegmentFinished?.Invoke( completingOk );
 			}
 		}
 
@@ -1072,43 +1100,92 @@ namespace Hmi
 
 		private void StartWaypoint( Waypoint wp )
 		{
-			// Single-waypoint dispatch (3.8.2). Routes to the MoveL / MoveJ kernel
-			// extracted in 3.8.1 based on wp.Motion, applying wp.VRatio as the
-			// speed override. Deliberately fire-and-forget: no queueing, no
-			// pause/resume, no completion callback — 3.10's WaypointSequencePlayer
-			// layers those on top of the same kernels.
+			// Single-waypoint dispatch (3.8.2). Routes through IWaypointSegmentExecutor
+			// so the manual Start button shares the exact same code path as
+			// WaypointSequencePlayer (3.10). SegmentFinished still fires, but the
+			// player ignores it (state != Running) so manual interventions don't
+			// perturb a running sequence — and if a sequence IS running, the
+			// kernel's cancel-in-flight will fire SegmentFinished(false), which
+			// puts the player into Aborted (intended).
 			if( wp == null ) return;
-			if( !_robotLoaded ) {
-				SetStatus( "Load a robot first." );
-				return;
-			}
-
-			var target = wp.PoseXyzAbc;
-			double vRatio = wp.VRatio;
-
+			string label = ( wp.Motion == MotionType.J ? "MoveJ → " : "MoveL → " ) + wp.Name;
 			if( wp.Motion == MotionType.J ) {
-				// Joint-space: resolve the target TCP into joint angles first (one-shot
-				// IK), then hand off. Scaling all three MoveJ caps (speed/accel/jerk)
-				// by the same ratio preserves the S-curve shape and just stretches
-				// the duration — same convention as StartMoveLToPoseTarget.
-				var targetJoints = new double[ JointCount ];
-				int status = _viewer.SolveTcpIk( target, _jointMin, _jointMax, targetJoints );
-				if( status != 0 ) {
-					SetStatus( status == 2
-						? $"MoveJ → {wp.Name}: target unreachable (IK did not converge)."
-						: $"MoveJ → {wp.Name}: invalid IK configuration." );
-					return;
-				}
-				StartMoveJToJointTarget( targetJoints,
-					MoveJSpeedDegPerSec  * vRatio,
-					MoveJAccelDegPerSec2 * vRatio,
-					MoveJJerkDegPerSec3  * vRatio,
-					$"MoveJ → {wp.Name}" );
+				ExecuteMoveJ( wp.PoseXyzAbc, wp.VRatio, label );
 			} else {
-				StartMoveLToPoseTarget( target,
-					vRatioLin: vRatio,
-					vRatioAng: vRatio,
-					statusLabel: $"MoveL → {wp.Name}" );
+				ExecuteMoveL( wp.PoseXyzAbc, wp.VRatio, label );
+			}
+		}
+
+		// -----------------------------------------------------------------------
+		// IWaypointSegmentExecutor (3.10)
+		// -----------------------------------------------------------------------
+		// Adapter over the MoveL / MoveJ kernels (StartMoveLToPoseTarget /
+		// StartMoveJToJointTarget) so WaypointSequencePlayer can drive segments
+		// without knowing about OccBridge, IK, or DispatcherTimer. Reject cases
+		// (no robot, unreachable target) return false and do NOT fire
+		// SegmentFinished — the player treats rejection as "skip and advance".
+
+		public event Action<bool> SegmentFinished;
+
+		public bool ExecuteMoveL( double[] targetPose, double vRatio, string statusLabel )
+		{
+			if( !_robotLoaded ) {
+				SetStatus( $"{statusLabel}: load a robot first." );
+				return false;
+			}
+			return StartMoveLToPoseTarget( targetPose,
+				vRatioLin: vRatio,
+				vRatioAng: vRatio,
+				statusLabel: statusLabel );
+		}
+
+		public bool ExecuteMoveJ( double[] targetPose, double vRatio, string statusLabel )
+		{
+			if( !_robotLoaded ) {
+				SetStatus( $"{statusLabel}: load a robot first." );
+				return false;
+			}
+			var targetJoints = new double[ JointCount ];
+			int status = _viewer.SolveTcpIk( targetPose, _jointMin, _jointMax, targetJoints );
+			if( status != 0 ) {
+				SetStatus( status == 2
+					? $"{statusLabel}: target unreachable (IK did not converge)."
+					: $"{statusLabel}: invalid IK configuration." );
+				return false;
+			}
+			return StartMoveJToJointTarget( targetJoints,
+				MoveJSpeedDegPerSec  * vRatio,
+				MoveJAccelDegPerSec2 * vRatio,
+				MoveJJerkDegPerSec3  * vRatio,
+				statusLabel );
+		}
+
+		public void Cancel()
+		{
+			// Aborts either kernel in-flight. Each StopMove* checks its own
+			// `wasActive` gate, so this is a no-op when nothing is running.
+			// SegmentFinished(false) will fire for whichever kernel was active
+			// (with _completingOk = false, since we didn't set the latch).
+			StopMoveL( silent: true );
+			StopMoveJ( silent: true );
+		}
+
+		private void OnSequenceStateChanged( PlayerState state )
+		{
+			// Segment-level status ("Seq 3/5 → P3: ...") is written by the kernels
+			// while a segment runs; we only need to overwrite the status bar on
+			// non-Running transitions so operators can see why the sequence
+			// stopped moving.
+			switch( state ) {
+				case PlayerState.Paused:
+					SetStatus( $"Sequence paused at {_sequencePlayer.CurrentIndex}/{_sequencePlayer.QueueCount}." );
+					break;
+				case PlayerState.Completed:
+					SetStatus( $"Sequence completed ({_sequencePlayer.QueueCount} waypoints)." );
+					break;
+				case PlayerState.Aborted:
+					SetStatus( "Sequence aborted." );
+					break;
 			}
 		}
 
@@ -1142,6 +1219,7 @@ namespace Hmi
 			ApplyAllJointAngles( interp );
 
 			if( reachedEnd ) {
+				_moveJCompletingOk = true;
 				StopMoveJ( silent: true );
 				SetStatus( "MoveJ: target reached." );
 			}
@@ -1149,6 +1227,9 @@ namespace Hmi
 
 		private void StopMoveJ( bool silent )
 		{
+			bool wasActive = _moveJStart != null;
+			bool completingOk = _moveJCompletingOk;
+			_moveJCompletingOk = false;
 			_moveJTimer?.Stop();
 			_moveJStart = null;
 			_moveJTarget = null;
@@ -1156,6 +1237,9 @@ namespace Hmi
 			UpdateStopButtonState();
 			if( !silent ) {
 				SetStatus( "MoveJ stopped." );
+			}
+			if( wasActive ) {
+				SegmentFinished?.Invoke( completingOk );
 			}
 		}
 

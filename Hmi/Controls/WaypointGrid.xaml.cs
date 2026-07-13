@@ -1,27 +1,34 @@
 using System;
+using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using Hmi.Models;
+using Hmi.Motion;
 
 namespace Hmi.Controls
 {
 	/// <summary>
 	/// Teach-pendant UI: DataGrid bound to a <see cref="WaypointStore"/> plus
-	/// Add / Delete / ↑ / ↓ / Clear buttons. Add captures the current TCP pose
-	/// through an injected <see cref="PoseProvider"/> callback so this control
-	/// never takes a direct dependency on OccBridge / MainWindow.
+	/// Add / Delete / ↑ / ↓ / Clear buttons, a single-shot Start button, and
+	/// (when a <see cref="Player"/> is wired) a Play / Pause / Step / Stop /
+	/// Loop / Speed sequence control row backed by
+	/// <see cref="WaypointSequencePlayer"/>.
 	///
-	/// Data-binding round-trips (edit a cell → the underlying <see cref="Waypoint"/>
-	/// mutates) rely on <see cref="Waypoint"/>'s INPC implementation added in 3.7.1;
-	/// no ViewModel layer is needed at this stage.
+	/// Add captures the current TCP pose through an injected
+	/// <see cref="PoseProvider"/> callback so this control never takes a direct
+	/// dependency on OccBridge / MainWindow. Data-binding round-trips (edit a
+	/// cell → the underlying <see cref="Waypoint"/> mutates) rely on the INPC
+	/// implementation added in 3.7.1; no ViewModel layer is needed at this stage.
 	/// </summary>
 	public partial class WaypointGrid : UserControl
 	{
 		private WaypointStore _store;
+		private WaypointSequencePlayer _player;
 
 		public WaypointGrid()
 		{
 			InitializeComponent();
+			UpdateSequenceButtonStates();
 		}
 
 		/// <summary>
@@ -48,10 +55,28 @@ namespace Hmi.Controls
 		/// Callback the Start button raises with the selected waypoint. MainWindow
 		/// dispatches to the MoveL / MoveJ kernel based on <see cref="Waypoint.Motion"/>;
 		/// this control stays ignorant of motion primitives. Unset → button is a no-op.
-		/// 3.10 will layer <c>WaypointSequencePlayer</c> on top of the same kernels;
-		/// the Start button remains the single-shot / manual entry point.
 		/// </summary>
 		public Action<Waypoint> StartRequested { get; set; }
+
+		/// <summary>
+		/// Sequence player driving Play / Pause / Step / Stop / Loop / Speed.
+		/// Setting the property (re)subscribes to <see cref="WaypointSequencePlayer.StateChanged"/>
+		/// so button enables track the state machine. Null clears wiring — the
+		/// sequence-row buttons then remain disabled.
+		/// </summary>
+		public WaypointSequencePlayer Player {
+			get => _player;
+			set {
+				if( _player != null ) _player.StateChanged -= OnPlayerStateChanged;
+				_player = value;
+				if( _player != null ) {
+					_player.StateChanged += OnPlayerStateChanged;
+					_player.Loop          = ChkLoop.IsChecked == true;
+					_player.SpeedOverride = SldSpeed.Value;
+				}
+				UpdateSequenceButtonStates();
+			}
+		}
 
 		private void BtnAdd_Click( object sender, RoutedEventArgs e )
 		{
@@ -115,5 +140,69 @@ namespace Hmi.Controls
 			if( wp == null ) return;
 			StartRequested( wp );
 		}
+
+		// -------------------------------------------------------------------
+		// Sequence controls (3.8.3 / 3.10)
+		// -------------------------------------------------------------------
+
+		private void BtnPlay_Click( object sender, RoutedEventArgs e )
+		{
+			if( _player == null || _store == null ) return;
+			// Play doubles as Resume so a single obvious action button covers
+			// both "start fresh" and "continue after Pause".
+			if( _player.State == PlayerState.Paused ) {
+				_player.Resume();
+			} else {
+				_player.Start( _store.Waypoints );
+			}
+		}
+
+		private void BtnPause_Click( object sender, RoutedEventArgs e )
+		{
+			_player?.Pause();
+		}
+
+		private void BtnStep_Click( object sender, RoutedEventArgs e )
+		{
+			if( _player == null || _store == null ) return;
+			_player.Step( _store.Waypoints );
+		}
+
+		private void BtnStop_Click( object sender, RoutedEventArgs e )
+		{
+			_player?.Stop();
+		}
+
+		private void ChkLoop_Changed( object sender, RoutedEventArgs e )
+		{
+			if( _player != null ) _player.Loop = ChkLoop.IsChecked == true;
+		}
+
+		private void SldSpeed_ValueChanged( object sender, RoutedPropertyChangedEventArgs<double> e )
+		{
+			if( _player != null ) _player.SpeedOverride = e.NewValue;
+			// TxtSpeed is null during InitializeComponent's first slider-value binding.
+			if( TxtSpeed != null ) {
+				TxtSpeed.Text = e.NewValue.ToString( "F2", CultureInfo.InvariantCulture ) + "×";
+			}
+		}
+
+		private void OnPlayerStateChanged( PlayerState state )
+		{
+			UpdateSequenceButtonStates();
+		}
+
+		private void UpdateSequenceButtonStates()
+		{
+			var state = _player?.State ?? PlayerState.Idle;
+			bool hasPlayer = _player != null;
+			BtnPlay.IsEnabled  = hasPlayer && state != PlayerState.Running;
+			BtnPause.IsEnabled = hasPlayer && state == PlayerState.Running;
+			BtnStep.IsEnabled  = hasPlayer && state != PlayerState.Running;
+			BtnStop.IsEnabled  = hasPlayer && ( state == PlayerState.Running || state == PlayerState.Paused );
+			ChkLoop.IsEnabled  = hasPlayer;
+			SldSpeed.IsEnabled = hasPlayer;
+		}
 	}
 }
+
