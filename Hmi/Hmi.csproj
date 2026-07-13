@@ -88,6 +88,8 @@
       <DependentUpon>StatusDashboard.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Models\Waypoint.cs" />
+    <Compile Include="Models\WaypointStore.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
