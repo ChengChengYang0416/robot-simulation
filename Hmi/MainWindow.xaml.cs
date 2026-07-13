@@ -717,12 +717,11 @@ namespace Hmi
 
 		private void BtnMoveL_Click( object sender, RoutedEventArgs e )
 		{
-			// Linear TCP motion: lerp position in mm and RPY in deg (after wrapping each
-			// component delta to [-180, 180] so we always take the short way around),
-			// solving IK per frame with the previous joint state as seed so the solver
-			// tracks a single continuous branch. The progress function s(t) comes from a
-			// MotionProfile so the same player can switch between linear, trapezoidal,
-			// or future S-curve shapes without touching the tick loop.
+			// Thin shell over the MoveL kernel: validate operator inputs from the
+			// pose textboxes then dispatch at 1.0× ratios. All planning / timer /
+			// singularity-scaler logic lives in StartMoveLToPoseTarget so 3.8.2's
+			// single-waypoint Go button and 3.10's WaypointSequencePlayer can
+			// reuse the same code path with different (target, ratio) arguments.
 			if( !_robotLoaded ) {
 				SetStatus( "Load a robot first." );
 				return;
@@ -731,10 +730,37 @@ namespace Hmi
 				SetStatus( "Invalid pose input: enter numeric XYZ (mm) and ABC (deg)." );
 				return;
 			}
-			var current = _viewer.GetTcpPose();
+			StartMoveLToPoseTarget( target, vRatioLin: 1.0, vRatioAng: 1.0, statusLabel: "MoveL trap" );
+		}
+
+		private bool StartMoveLToPoseTarget( double[] target,
+											 double vRatioLin,
+											 double vRatioAng,
+											 string statusLabel )
+		{
+			// Cartesian-space player kernel. Callers that already hold a resolved
+			// 6-element target pose (BtnMoveL_Click from the pose textboxes,
+			// future single-waypoint Go button in 3.8.2, WaypointSequencePlayer
+			// segment dispatch in 3.10) plug straight in here and inherit the
+			// S-curve / dominant-dimension pacing / singularity-aware scaler
+			// infrastructure without duplicating the planning boilerplate.
+			//
+			// Linear TCP motion: lerp position in mm and orient via quaternion
+			// slerp (short-way geodesic), solving IK per frame with the previous
+			// joint state as seed so the solver tracks a single continuous
+			// branch. The progress function s(t) comes from an S-curve
+			// MotionProfile so acceleration ramps continuously and joint
+			// velocities never step.
+			//
+			// Ratio parameters scale each set of linear / angular caps (speed +
+			// accel + jerk) uniformly so the S-curve *shape* is preserved and
+			// only the total duration stretches. Waypoint.VRatio (0.1..2.0) is
+			// already clamped in the POCO setter, so the kernel accepts inputs
+			// as-is without re-validation.
+			var current = _viewer?.GetTcpPose();
 			if( current == null || current.Length < 6 ) {
-				SetStatus( "TCP pose unavailable." );
-				return;
+				SetStatus( $"{statusLabel}: TCP pose unavailable." );
+				return false;
 			}
 
 			double dx = target[ 0 ] - current[ 0 ];
@@ -747,7 +773,7 @@ namespace Hmi
 			// max(|dA|, |dB|, |dC|) approximation, which over-estimated whenever
 			// the three Euler deltas pointed along non-parallel axes and was
 			// outright wrong near gimbal lock. Sizing the profile with the true
-			// arc length means MoveL durations now match the actual orientation
+			// arc length means MoveL durations match the actual orientation
 			// path the wrist will walk.
 			if( _moveLPoseInterp == null ) {
 				_moveLPoseInterp = new OccBridge.PoseInterp();
@@ -757,30 +783,32 @@ namespace Hmi
 			_moveLPoseInterp.Begin( startAbc, targetAbc );
 			double angularDist = _moveLPoseInterp.TotalAngleDeg;
 
-			// Plan a trapezoidal profile for each dimension under its own vMax/aMax, then
-			// keep the longer one as the dominant profile. The other dimension follows
-			// the same s(t), which means it moves slower than its limit — that is the
-			// price of synchronisation, and guarantees no dimension ever exceeds its cap.
 			// Plan a jerk-limited S-curve profile for each dimension under its own
-			// vMax / aMax / jMax, then keep the longer one as the dominant profile. The
-			// other dimension follows the same s(t), which means it moves slower than
-			// its limit — that is the price of synchronisation, and guarantees no
-			// dimension ever exceeds its cap. Compared to a trapezoidal profile the
-			// S-curve adds a constant-jerk phase on each end so the acceleration
-			// itself ramps continuously, eliminating the velocity "kink" at phase
-			// boundaries; useful when the robot is mounted on a flexible structure.
+			// scaled vMax / aMax / jMax, then keep the longer one as the dominant
+			// profile. The other dimension follows the same s(t), which means it
+			// moves slower than its limit — the price of synchronisation
+			// guarantees no dimension ever exceeds its cap. Compared to a
+			// trapezoidal profile the S-curve adds a constant-jerk phase on each
+			// end so the acceleration itself ramps continuously, eliminating the
+			// velocity "kink" at phase boundaries.
 			var linPlan = OccBridge.MotionProfile.CreateSCurve(
-				linearDist,  MoveLLinearSpeedMmPerSec,  MoveLLinearAccelMmPerSec2,  MoveLLinearJerkMmPerSec3 );
+				linearDist,
+				MoveLLinearSpeedMmPerSec  * vRatioLin,
+				MoveLLinearAccelMmPerSec2 * vRatioLin,
+				MoveLLinearJerkMmPerSec3  * vRatioLin );
 			var angPlan = OccBridge.MotionProfile.CreateSCurve(
-				angularDist, MoveLAngularSpeedDegPerSec, MoveLAngularAccelDegPerSec2, MoveLAngularJerkDegPerSec3 );
+				angularDist,
+				MoveLAngularSpeedDegPerSec  * vRatioAng,
+				MoveLAngularAccelDegPerSec2 * vRatioAng,
+				MoveLAngularJerkDegPerSec3  * vRatioAng );
 			OccBridge.MotionProfile profile = ( linPlan.DurationSec >= angPlan.DurationSec ) ? linPlan : angPlan;
 
 			if( profile.DurationSec < 1.0e-6 ) {
-				SetStatus( "MoveL: already at target." );
-				return;
+				SetStatus( $"{statusLabel}: already at target." );
+				return false;
 			}
 
-			// Cancel any in-flight motion so back-to-back clicks restart cleanly.
+			// Cancel any in-flight motion so back-to-back calls restart cleanly.
 			StopMoveL( silent: true );
 			StopMoveJ( silent: true );
 
@@ -805,7 +833,8 @@ namespace Hmi
 			}
 			_moveLTimer.Start();
 			UpdateStopButtonState();
-			SetStatus( $"MoveL trap: {linearDist:F1} mm / {angularDist:F1}° in {profile.DurationSec:F2} s" );
+			SetStatus( $"{statusLabel}: {linearDist:F1} mm / {angularDist:F1}° in {profile.DurationSec:F2} s" );
+			return true;
 		}
 
 		private void BtnStopMotion_Click( object sender, RoutedEventArgs e )
