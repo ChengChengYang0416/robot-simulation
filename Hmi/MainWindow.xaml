@@ -14,6 +14,11 @@
                 <MenuItem Header="Import Model" Click="BtnOpenFolder_Click"/>
                 <MenuItem Header="Save Screenshot..." Command="ApplicationCommands.Save"/>
                 <MenuItem Header="Clear Scene" Click="BtnClear_Click"/>
+                <Separator/>
+                <MenuItem Header="Teach Pendant">
+                    <MenuItem Name="MenuSaveWaypoints" Header="Save Waypoints..." Click="MenuSaveWaypoints_Click"/>
+                    <MenuItem Name="MenuLoadWaypoints" Header="Load Waypoints..." Click="MenuLoadWaypoints_Click"/>
+                </MenuItem>
             </MenuItem>
             <MenuItem Header="_View">
                 <MenuItem Name="MenuIso" Header="ISO" IsCheckable="True" IsChecked="True" Click="BtnIso_Click"/>

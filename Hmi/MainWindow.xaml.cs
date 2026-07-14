@@ -1189,6 +1189,72 @@ namespace Hmi
 			}
 		}
 
+		// -----------------------------------------------------------------------
+		// Teach pendant persistence (3.9)
+		// -----------------------------------------------------------------------
+
+		private void MenuSaveWaypoints_Click( object sender, RoutedEventArgs e )
+		{
+			if( _waypointStore.Count == 0 ) {
+				SetStatus( "No waypoints to save." );
+				return;
+			}
+			var dialog = new SaveFileDialog {
+				Title            = "Save Waypoints",
+				Filter           = "Teach files (*.teach.json)|*.teach.json|All files (*.*)|*.*",
+				DefaultExt       = WaypointStore.FileExtension,
+				AddExtension     = true,
+				FileName         = "waypoints" + WaypointStore.FileExtension
+			};
+			if( dialog.ShowDialog( this ) != true ) return;
+
+			try {
+				_waypointStore.SaveTo( dialog.FileName );
+				SetStatus( $"Saved {_waypointStore.Count} waypoints → {System.IO.Path.GetFileName( dialog.FileName )}" );
+			} catch( Exception ex ) {
+				SetStatus( "Save waypoints failed: " + ex.Message );
+				MessageBox.Show( this,
+					"Failed to save waypoints:\n\n" + ex.Message,
+					"Save Waypoints",
+					MessageBoxButton.OK,
+					MessageBoxImage.Warning );
+			}
+		}
+
+		private void MenuLoadWaypoints_Click( object sender, RoutedEventArgs e )
+		{
+			// Refuse to reload the queue mid-run: the player already snapshotted
+			// the previous list, so reloading would leave the DataGrid showing
+			// waypoints the running sequence is not visiting. Force a Stop first.
+			if( _sequencePlayer != null &&
+				( _sequencePlayer.State == PlayerState.Running || _sequencePlayer.State == PlayerState.Paused ) ) {
+				SetStatus( "Stop the sequence before loading waypoints." );
+				return;
+			}
+
+			var dialog = new OpenFileDialog {
+				Title      = "Load Waypoints",
+				Filter     = "Teach files (*.teach.json)|*.teach.json|All files (*.*)|*.*",
+				DefaultExt = WaypointStore.FileExtension
+			};
+			if( dialog.ShowDialog( this ) != true ) return;
+
+			try {
+				_waypointStore.LoadFrom( dialog.FileName );
+				SetStatus( $"Loaded {_waypointStore.Count} waypoints from {System.IO.Path.GetFileName( dialog.FileName )}" );
+			} catch( Exception ex ) {
+				// Store's LoadFrom is transactional (stage-then-commit), so a
+				// failed load leaves the previous queue intact — safe to just
+				// report and continue.
+				SetStatus( "Load waypoints failed: " + ex.Message );
+				MessageBox.Show( this,
+					"Failed to load waypoints:\n\n" + ex.Message,
+					"Load Waypoints",
+					MessageBoxButton.OK,
+					MessageBoxImage.Warning );
+			}
+		}
+
 		private void MoveJTimer_Tick( object sender, EventArgs e )
 		{
 			if( !_robotLoaded || _moveJStart == null || _moveJTarget == null || _moveJProfile == null ) {

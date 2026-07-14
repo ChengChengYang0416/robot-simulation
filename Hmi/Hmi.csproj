@@ -97,6 +97,7 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Models\Waypoint.cs" />
+    <Compile Include="Models\WaypointFileFormat.cs" />
     <Compile Include="Models\WaypointStore.cs" />
     <Compile Include="Motion\IWaypointSegmentExecutor.cs" />
     <Compile Include="Motion\WaypointSequencePlayer.cs" />
