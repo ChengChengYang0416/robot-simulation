@@ -283,20 +283,40 @@
                         </ScrollViewer>
                     </TabItem>
 
-                    <!-- ====== Teach Pendant (3.7) ====== -->
-                    <TabItem Header="Teach">
-                        <ctl:WaypointGrid x:Name="TeachGrid" Margin="8"/>
-                    </TabItem>
                 </TabControl>
 
                 <ctl:StatusDashboard Grid.Row="1" x:Name="Dashboard" Margin="12,0,12,12"/>
             </Grid>
 
-            <Border Grid.Column="1" Margin="8" CornerRadius="8" BorderBrush="#D1D5DB" BorderThickness="1" Background="#2E2E2E">
-                <wfi:WindowsFormsHost Name="WinFormsHost" Margin="0">
-                    <wf:Panel x:Name="DesignPlaceholder" BackColor="#2E2E2E" />
-                </wfi:WindowsFormsHost>
-            </Border>
+            <!-- Right column: 3D viewport on top, horizontal GridSplitter, Teach pendant
+                 docked at the bottom. Teach used to live inside the left ModeTabs, but
+                 the JOG→Teach round-trip forced constant tab switching. Keeping the
+                 pendant always visible lets the operator pose the robot on the left,
+                 hit Add on the bottom, and see the new waypoint immediately. -->
+            <Grid Grid.Column="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" MinHeight="200"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="260" MinHeight="140"/>
+                </Grid.RowDefinitions>
+
+                <Border Grid.Row="0" Margin="8,8,8,4" CornerRadius="8" BorderBrush="#D1D5DB" BorderThickness="1" Background="#2E2E2E">
+                    <wfi:WindowsFormsHost Name="WinFormsHost" Margin="0">
+                        <wf:Panel x:Name="DesignPlaceholder" BackColor="#2E2E2E" />
+                    </wfi:WindowsFormsHost>
+                </Border>
+
+                <GridSplitter Grid.Row="1" Height="6"
+                              HorizontalAlignment="Stretch" VerticalAlignment="Center"
+                              Background="#D1D5DB"
+                              ShowsPreview="True"
+                              ResizeBehavior="PreviousAndNext"
+                              ResizeDirection="Rows"/>
+
+                <Border Grid.Row="2" Margin="8,4,8,8" CornerRadius="8" BorderBrush="#D1D5DB" BorderThickness="1" Background="White">
+                    <ctl:WaypointGrid x:Name="TeachGrid" Margin="6"/>
+                </Border>
+            </Grid>
         </Grid>
     </DockPanel>
 </Window>
