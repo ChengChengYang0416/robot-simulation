@@ -23,7 +23,12 @@
             <Button Name="BtnUp"     Content="↑"      Padding="8,4" Margin="0,0,4,0" Click="BtnUp_Click"/>
             <Button Name="BtnDown"   Content="↓"      Padding="8,4" Margin="0,0,4,0" Click="BtnDown_Click"/>
             <Button Name="BtnClear"  Content="Clear"  Padding="8,4" Margin="0,0,12,0" Click="BtnClear_Click"/>
-            <Button Name="BtnStart"  Content="Start"  Padding="8,4" FontWeight="Bold" Click="BtnStart_Click"/>
+            <Button Name="BtnStart"  Content="Start"  Padding="8,4" Margin="0,0,12,0" FontWeight="Bold" Click="BtnStart_Click"/>
+            <!-- File I/O lives on the pendant so operators can persist a taught
+                 sequence without leaving the panel (used to require File > Teach
+                 Pendant > Save/Load, which broke the JOG→Teach→Save flow). -->
+            <Button Name="BtnSave"   Content="Save…" Padding="8,4" Margin="0,0,4,0" Click="BtnSave_Click"/>
+            <Button Name="BtnLoad"   Content="Load…" Padding="8,4" Click="BtnLoad_Click"/>
         </StackPanel>
 
         <!-- Sequence controls (3.8.3 / 3.10): Play walks the whole queue,

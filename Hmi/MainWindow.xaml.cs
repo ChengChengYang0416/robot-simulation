@@ -154,6 +154,10 @@ namespace Hmi
 			TeachGrid.Store = _waypointStore;
 			TeachGrid.PoseProvider = () => _viewer?.GetTcpPose();
 			TeachGrid.StartRequested = StartWaypoint;
+			// Save/Load waypoints buttons live on the pendant (3.7.3); route their
+			// status messages through the shared status bar so success + error
+			// summaries surface in the same place as motion status.
+			TeachGrid.StatusReporter = m => SetStatus( m );
 
 			// Sequence player (3.10). MainWindow implements IWaypointSegmentExecutor,
 			// so `this` is the executor. Player subscribes to SegmentFinished in its
@@ -1186,72 +1190,6 @@ namespace Hmi
 				case PlayerState.Aborted:
 					SetStatus( "Sequence aborted." );
 					break;
-			}
-		}
-
-		// -----------------------------------------------------------------------
-		// Teach pendant persistence (3.9)
-		// -----------------------------------------------------------------------
-
-		private void MenuSaveWaypoints_Click( object sender, RoutedEventArgs e )
-		{
-			if( _waypointStore.Count == 0 ) {
-				SetStatus( "No waypoints to save." );
-				return;
-			}
-			var dialog = new SaveFileDialog {
-				Title            = "Save Waypoints",
-				Filter           = "Teach files (*.teach.json)|*.teach.json|All files (*.*)|*.*",
-				DefaultExt       = WaypointStore.FileExtension,
-				AddExtension     = true,
-				FileName         = "waypoints" + WaypointStore.FileExtension
-			};
-			if( dialog.ShowDialog( this ) != true ) return;
-
-			try {
-				_waypointStore.SaveTo( dialog.FileName );
-				SetStatus( $"Saved {_waypointStore.Count} waypoints → {System.IO.Path.GetFileName( dialog.FileName )}" );
-			} catch( Exception ex ) {
-				SetStatus( "Save waypoints failed: " + ex.Message );
-				MessageBox.Show( this,
-					"Failed to save waypoints:\n\n" + ex.Message,
-					"Save Waypoints",
-					MessageBoxButton.OK,
-					MessageBoxImage.Warning );
-			}
-		}
-
-		private void MenuLoadWaypoints_Click( object sender, RoutedEventArgs e )
-		{
-			// Refuse to reload the queue mid-run: the player already snapshotted
-			// the previous list, so reloading would leave the DataGrid showing
-			// waypoints the running sequence is not visiting. Force a Stop first.
-			if( _sequencePlayer != null &&
-				( _sequencePlayer.State == PlayerState.Running || _sequencePlayer.State == PlayerState.Paused ) ) {
-				SetStatus( "Stop the sequence before loading waypoints." );
-				return;
-			}
-
-			var dialog = new OpenFileDialog {
-				Title      = "Load Waypoints",
-				Filter     = "Teach files (*.teach.json)|*.teach.json|All files (*.*)|*.*",
-				DefaultExt = WaypointStore.FileExtension
-			};
-			if( dialog.ShowDialog( this ) != true ) return;
-
-			try {
-				_waypointStore.LoadFrom( dialog.FileName );
-				SetStatus( $"Loaded {_waypointStore.Count} waypoints from {System.IO.Path.GetFileName( dialog.FileName )}" );
-			} catch( Exception ex ) {
-				// Store's LoadFrom is transactional (stage-then-commit), so a
-				// failed load leaves the previous queue intact — safe to just
-				// report and continue.
-				SetStatus( "Load waypoints failed: " + ex.Message );
-				MessageBox.Show( this,
-					"Failed to load waypoints:\n\n" + ex.Message,
-					"Load Waypoints",
-					MessageBoxButton.OK,
-					MessageBoxImage.Warning );
 			}
 		}
 

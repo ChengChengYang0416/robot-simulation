@@ -1,9 +1,11 @@
 using System;
 using System.Globalization;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using Hmi.Models;
 using Hmi.Motion;
+using Microsoft.Win32;
 
 namespace Hmi.Controls
 {
@@ -57,6 +59,14 @@ namespace Hmi.Controls
 		/// this control stays ignorant of motion primitives. Unset → button is a no-op.
 		/// </summary>
 		public Action<Waypoint> StartRequested { get; set; }
+
+		/// <summary>
+		/// Optional sink for one-line status messages (Save / Load success + error
+		/// summaries). MainWindow wires it to the status bar; leaving it null still
+		/// lets file I/O work — fatal errors always also raise a MessageBox so the
+		/// operator never silently loses a save.
+		/// </summary>
+		public Action<string> StatusReporter { get; set; }
 
 		/// <summary>
 		/// Sequence player driving Play / Pause / Step / Stop / Loop / Speed.
@@ -139,6 +149,76 @@ namespace Hmi.Controls
 			var wp = Grid.SelectedItem as Waypoint;
 			if( wp == null ) return;
 			StartRequested( wp );
+		}
+
+		// -------------------------------------------------------------------
+		// Teach-file persistence (3.9). Used to live on File > Teach Pendant
+		// menu in MainWindow; moved here so operators never leave the panel to
+		// checkpoint a taught sequence. Store.SaveTo / LoadFrom stay in the
+		// Model layer — this control only owns the dialog + reporting.
+		// -------------------------------------------------------------------
+
+		private void BtnSave_Click( object sender, RoutedEventArgs e )
+		{
+			if( _store == null || _store.Count == 0 ) {
+				StatusReporter?.Invoke( "No waypoints to save." );
+				return;
+			}
+			var dialog = new SaveFileDialog {
+				Title        = "Save Waypoints",
+				Filter       = "Teach files (*.teach.json)|*.teach.json|All files (*.*)|*.*",
+				DefaultExt   = WaypointStore.FileExtension,
+				AddExtension = true,
+				FileName     = "waypoints" + WaypointStore.FileExtension
+			};
+			if( dialog.ShowDialog( Window.GetWindow( this ) ) != true ) return;
+
+			try {
+				_store.SaveTo( dialog.FileName );
+				StatusReporter?.Invoke( $"Saved {_store.Count} waypoints → {Path.GetFileName( dialog.FileName )}" );
+			} catch( Exception ex ) {
+				StatusReporter?.Invoke( "Save waypoints failed: " + ex.Message );
+				MessageBox.Show( Window.GetWindow( this ),
+					"Failed to save waypoints:\n\n" + ex.Message,
+					"Save Waypoints",
+					MessageBoxButton.OK,
+					MessageBoxImage.Warning );
+			}
+		}
+
+		private void BtnLoad_Click( object sender, RoutedEventArgs e )
+		{
+			if( _store == null ) return;
+			// Refuse to reload the queue mid-run: the player already snapshotted
+			// the previous list, so reloading would leave the DataGrid showing
+			// waypoints the running sequence is not visiting. Force a Stop first.
+			if( _player != null &&
+				( _player.State == PlayerState.Running || _player.State == PlayerState.Paused ) ) {
+				StatusReporter?.Invoke( "Stop the sequence before loading waypoints." );
+				return;
+			}
+
+			var dialog = new OpenFileDialog {
+				Title      = "Load Waypoints",
+				Filter     = "Teach files (*.teach.json)|*.teach.json|All files (*.*)|*.*",
+				DefaultExt = WaypointStore.FileExtension
+			};
+			if( dialog.ShowDialog( Window.GetWindow( this ) ) != true ) return;
+
+			try {
+				_store.LoadFrom( dialog.FileName );
+				StatusReporter?.Invoke( $"Loaded {_store.Count} waypoints from {Path.GetFileName( dialog.FileName )}" );
+			} catch( Exception ex ) {
+				// Store's LoadFrom is transactional (stage-then-commit), so a
+				// failed load leaves the previous queue intact — safe to just
+				// report and continue.
+				StatusReporter?.Invoke( "Load waypoints failed: " + ex.Message );
+				MessageBox.Show( Window.GetWindow( this ),
+					"Failed to load waypoints:\n\n" + ex.Message,
+					"Load Waypoints",
+					MessageBoxButton.OK,
+					MessageBoxImage.Warning );
+			}
 		}
 
 		// -------------------------------------------------------------------
